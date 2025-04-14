@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Intraday Weekly Plan with Auto OAuth</title>
+  <title>Intraday Weekly Plan with Planning Groups</title>
   <meta charset="UTF-8">
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -40,6 +40,15 @@
     </select>
   </div>
   
+  <!-- Planning Group Dropdown (Populated based on Business Unit) -->
+  <div class="container">
+    <label for="planningGroup">Planning Group:</label>
+    <select id="planningGroup">
+      <option value="">--Select Planning Group--</option>
+      <!-- Options will be populated via the GET planning groups API -->
+    </select>
+  </div>
+  
   <!-- Week Selection Dropdown -->
   <div class="container">
     <label for="weekSelect">Select Week:</label>
@@ -48,15 +57,7 @@
     </select>
   </div>
   
-  <!-- Filter Dropdowns -->
-  <div class="container">
-    <label for="planningGroup">Planning Group:</label>
-    <select id="planningGroup">
-      <option value="">--All--</option>
-      <option value="GroupA">Group A</option>
-      <option value="GroupB">Group B</option>
-    </select>
-  </div>
+  <!-- Media Type Dropdown (Static options for now) -->
   <div class="container">
     <label for="mediaType">Media Type:</label>
     <select id="mediaType">
@@ -88,14 +89,13 @@
   
   <script>
     /***** OAuth Authentication Setup *****/
-    // Using implicit grant flow—client secret is not used.
+    // Using implicit grant flow; the client secret will not be used.
     const CLIENT_ID = '256876c6-470d-4304-8e7d-2038f8a55d95';
     const CLIENT_SECRET = 'tAdek1cTnnMmygxe-ma3_w_pNMSQkFZf-FQGXVeoVhg'; // For testing only.
     const REGION = 'mypurecloud.ie';
     const REDIRECT_URI = 'https://gmcglynn88.github.io/Intraday-Plan/';
     const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
     
-    // Global variable to store the access token.
     let accessToken = '';
     
     /**
@@ -119,7 +119,7 @@
         // Clean the URL of the token.
         window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        // Auto-authenticate: redirect to the OAuth URL if token is not present.
+        // Auto-authenticate: redirect if token is not present.
         window.location.href = AUTH_URL;
       }
       
@@ -152,6 +152,38 @@
       }
     }
     
+    /***** Fetch Planning Groups for Selected Business Unit *****/
+    async function fetchPlanningGroups() {
+      const businessUnitId = document.getElementById('businessUnitSelect').value;
+      const planningGroupSelect = document.getElementById('planningGroup');
+      
+      // Clear previous planning group options and add a default option.
+      planningGroupSelect.innerHTML = '<option value="">--Select Planning Group--</option>';
+      
+      if (!businessUnitId) return; // No business unit selected.
+      
+      try {
+        const url = `https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups`;
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
+          }
+        });
+        if (!response.ok) throw new Error('Error fetching planning groups: ' + response.statusText);
+        const result = await response.json();
+        const planningGroups = result.entities;
+        planningGroups.forEach(group => {
+          const option = document.createElement('option');
+          option.value = group.id;  // Using the planning group ID
+          option.textContent = group.name;
+          planningGroupSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    
     /***** Date Formatting Functions *****/
     function getUKFormattedDate(date) {
       const day = date.getDate();
@@ -164,7 +196,7 @@
     
     /**
      * Returns an array of 7 date objects for the week.
-     * Each object has:
+     * Each object contains:
      *  - raw: ISO format (yyyy-mm-dd) for API calls.
      *  - uk: UK format (dd/mm/yyyy) for display.
      */
@@ -214,7 +246,6 @@
         alert("Please select a Business Unit first.");
         return { date: date, data: null };
       }
-      // Build the URL dynamically using the selected business unit ID.
       const url = `https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`;
       try {
         const response = await fetch(url, {
@@ -223,7 +254,15 @@
             'Content-Type': 'application/json',
             ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
           },
-          body: JSON.stringify({ date: date })
+          body: JSON.stringify({
+            businessUnitDate: date,
+            categories: [
+              "ForecastData",
+              "PerformancePredictionData",
+              "ScheduleData"
+            ],
+            intervalLengthMinutes: 15
+          })
         });
         if (!response.ok)
           throw new Error(`Error fetching data for ${date}: ${response.statusText}`);
@@ -252,9 +291,10 @@
       let tableHTML = '<table><thead><tr><th>Date</th><th>Daily Summary</th><th>Action</th></tr></thead><tbody>';
       
       weekData.forEach(day => {
-        // Apply filters if data exists.
+        // Filter rows based on planning group if specified.
         let showRow = true;
         if (day.data) {
+          // Example: assume day.data contains a planningGroup property with the planning group ID.
           if (planningGroupFilter && day.data.planningGroup !== planningGroupFilter)
             showRow = false;
           if (mediaTypeFilter && day.data.mediaType !== mediaTypeFilter)
@@ -265,13 +305,11 @@
         tableHTML += '<tr>';
         tableHTML += `<td>${day.uk}</td>`;
         if (day.data && Object.keys(day.data).length > 0) {
-          // Assuming day.data contains a property "dailySummary" (adjust if needed).
           const summary = day.data.dailySummary ? JSON.stringify(day.data.dailySummary) : 'Data available';
           tableHTML += `<td>${summary}</td>`;
         } else {
           tableHTML += `<td>Data not published for this time frame</td>`;
         }
-        // Button to view the 15-min interval details.
         tableHTML += `<td><button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")})'>View 15-min Details</button></td>`;
         tableHTML += '</tr>';
       });
@@ -287,7 +325,6 @@
       
       if (day.data && day.data.intervals && day.data.intervals.length > 0) {
         day.data.intervals.forEach(interval => {
-          // Adjust property names as returned by your API.
           tableHTML += `<tr><td>${interval.interval}</td><td>${interval.value}</td></tr>`;
         });
       } else {
@@ -326,7 +363,7 @@
       render15MinTable(day);
     }
     
-    // Refresh the daily table when week, filters, or business unit changes.
+    // Refresh data when week or media type changes.
     document.getElementById('weekSelect').addEventListener('change', function(event) {
       const startDate = event.target.value;
       if (startDate) {
@@ -334,9 +371,12 @@
       }
     });
     
-    document.getElementById('planningGroup').addEventListener('change', renderDailyTable);
     document.getElementById('mediaType').addEventListener('change', renderDailyTable);
+    document.getElementById('planningGroup').addEventListener('change', renderDailyTable);
+    
+    // When the business unit changes, refresh the planning group dropdown and intraday data if a week is selected.
     document.getElementById('businessUnitSelect').addEventListener('change', function() {
+      fetchPlanningGroups();
       const weekSelect = document.getElementById('weekSelect');
       if (weekSelect.value) {
         fetchDataForWeek(weekSelect.value);
