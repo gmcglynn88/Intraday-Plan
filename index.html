@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Intraday Weekly Plan with Business Unit and Tabs</title>
+  <title>Intraday Weekly Plan with Auto OAuth</title>
   <meta charset="UTF-8">
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -30,9 +30,6 @@
 </head>
 <body>
   <h1>Intraday Weekly Plan</h1>
-  
-  <!-- OAuth Login Button -->
-  <button id="loginButton">Login</button>
   
   <!-- Business Unit Dropdown -->
   <div class="container">
@@ -92,13 +89,18 @@
   <script>
     /***** OAuth Authentication Setup *****/
     const CLIENT_ID = '4652c8b5-9117-43c6-8e54-77eeb38aebb8';
-    const CLIENT_SECRET = 'txtfN6cb699Lu7tID5n2NSjGwKOU_6NzyghgSk-bVkY'; // WARNING: Do not expose in production.
+    const CLIENT_SECRET = 'txtfN6cb699Lu7tID5n2NSjGwKOU_6NzyghgSk-bVkY'; // WARNING: Do not expose this in production!
     const REGION = 'mypurecloud.ie';
     const REDIRECT_URI = 'https://gmcglynn88.github.io/IPI-changes-on-the-fly/';
     const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
     
+    // Global variable to store the access token.
     let accessToken = '';
     
+    /**
+     * Parse the URL hash for OAuth parameters.
+     * @returns {Object} Key/value pairs of parameters.
+     */
     function parseHashParams() {
       const hash = window.location.hash.substring(1);
       const params = {};
@@ -113,23 +115,26 @@
       const params = parseHashParams();
       if (params.access_token) {
         accessToken = params.access_token;
-        document.getElementById("loginButton").style.display = "none";
+        // Clean the URL of the token
         window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        // Auto-authenticate by redirecting to the OAuth URL if token is not present.
+        window.location.href = AUTH_URL;
       }
-      // Populate the dropdowns on load.
+      
+      // Now that authentication is (hopefully) set, load additional data.
       fetchBusinessUnits();
       populateWeekSelect();
-    });
-    
-    document.getElementById("loginButton").addEventListener("click", function() {
-      window.location.href = AUTH_URL;
     });
     
     /***** Fetch Business Units *****/
     async function fetchBusinessUnits() {
       try {
         const response = await fetch('https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits', {
-          headers: { 'Content-Type': 'application/json', ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {}) }
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
+          }
         });
         if (!response.ok) throw new Error('Error fetching business units: ' + response.statusText);
         const result = await response.json();
@@ -159,8 +164,8 @@
     /**
      * Returns an array of 7 date objects for the week.
      * Each object has:
-     * - raw: ISO format (yyyy-mm-dd) for API calls.
-     * - uk: UK format (dd/mm/yyyy) for display.
+     *  - raw: ISO format (yyyy-mm-dd) for API calls.
+     *  - uk: UK format (dd/mm/yyyy) for display.
      */
     function getWeekDates(startDate) {
       const dates = [];
@@ -265,7 +270,7 @@
         } else {
           tableHTML += `<td>Data not published for this time frame</td>`;
         }
-        // Use a button to view the 15-min interval details.
+        // Button to view the 15-min interval details.
         tableHTML += `<td><button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")})'>View 15-min Details</button></td>`;
         tableHTML += '</tr>';
       });
@@ -321,7 +326,7 @@
       render15MinTable(day);
     }
     
-    // Event listeners: When the week, planning group, media type, or business unit changes, refresh the daily table.
+    // Refresh the daily table when week, filters, or business unit changes.
     document.getElementById('weekSelect').addEventListener('change', function(event) {
       const startDate = event.target.value;
       if (startDate) {
