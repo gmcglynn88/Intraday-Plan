@@ -30,34 +30,34 @@
 </head>
 <body>
   <h1>Intraday Weekly Plan</h1>
-  
+
   <!-- Business Unit Dropdown -->
   <div class="container">
     <label for="businessUnitSelect">Select Business Unit:</label>
     <select id="businessUnitSelect">
       <option value="">--Select Business Unit--</option>
-      <!-- Options will be populated via the GET API -->
+      <!-- Populated via API -->
     </select>
   </div>
-  
+
   <!-- Planning Group Dropdown (Populated based on Business Unit) -->
   <div class="container">
-    <label for="planningGroup">Planning Group:</label>
+    <label for="planningGroup">Select Planning Group:</label>
     <select id="planningGroup">
       <option value="">--Select Planning Group--</option>
-      <!-- Options will be populated via the GET planning groups API -->
+      <!-- Populated via planning groups API -->
     </select>
   </div>
-  
+
   <!-- Week Selection Dropdown -->
   <div class="container">
     <label for="weekSelect">Select Week:</label>
     <select id="weekSelect">
-      <!-- Options are populated dynamically until end of 2026 -->
+      <!-- Dynamically populated until end of 2026 -->
     </select>
   </div>
-  
-  <!-- Media Type Dropdown (Static options for now) -->
+
+  <!-- Media Type Dropdown (Static options) -->
   <div class="container">
     <label for="mediaType">Media Type:</label>
     <select id="mediaType">
@@ -66,8 +66,8 @@
       <option value="Chat">Chat</option>
     </select>
   </div>
-  
-  <!-- Tab Navigation -->
+
+  <!-- Tab Navigation for Data Display -->
   <div class="container">
     <div id="tabs">
       <div id="dailyTabButton" class="tab active">Daily Data</div>
@@ -76,32 +76,28 @@
     <div id="dailyTab" class="tab-content active">
       <h2>Daily Data</h2>
       <div id="dailyTableContainer">
-        <!-- Daily data table will be rendered here -->
+        <!-- Daily summary table renders here -->
       </div>
     </div>
     <div id="intervalTab" class="tab-content">
       <h2>15-min Interval Data</h2>
       <div id="intervalTableContainer">
-        <!-- 15-min interval table will be rendered here -->
+        <!-- 15-min interval table renders here -->
       </div>
     </div>
   </div>
-  
+
   <script>
     /***** OAuth Authentication Setup *****/
-    // Using implicit grant flow; the client secret will not be used.
+    // Note: In the implicit grant flow, the client secret is not sent.
     const CLIENT_ID = '256876c6-470d-4304-8e7d-2038f8a55d95';
     const CLIENT_SECRET = 'tAdek1cTnnMmygxe-ma3_w_pNMSQkFZf-FQGXVeoVhg'; // For testing only.
     const REGION = 'mypurecloud.ie';
     const REDIRECT_URI = 'https://gmcglynn88.github.io/Intraday-Plan/';
     const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
-    
+
     let accessToken = '';
-    
-    /**
-     * Parse the URL hash for OAuth parameters.
-     * @returns {Object} Key/value pairs of parameters.
-     */
+
     function parseHashParams() {
       const hash = window.location.hash.substring(1);
       const params = {};
@@ -111,23 +107,22 @@
       });
       return params;
     }
-    
+
     window.addEventListener("load", function() {
       const params = parseHashParams();
       if (params.access_token) {
         accessToken = params.access_token;
-        // Clean the URL of the token.
+        // Clean the URL from the hash
         window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        // Auto-authenticate: redirect if token is not present.
+        // Auto-authenticate if token is not present.
         window.location.href = AUTH_URL;
       }
-      
-      // After authentication, load business units and week options.
+      // Load business units and week options after authentication.
       fetchBusinessUnits();
       populateWeekSelect();
     });
-    
+
     /***** Fetch Business Units *****/
     async function fetchBusinessUnits() {
       try {
@@ -151,17 +146,13 @@
         console.error(error);
       }
     }
-    
+
     /***** Fetch Planning Groups for Selected Business Unit *****/
     async function fetchPlanningGroups() {
       const businessUnitId = document.getElementById('businessUnitSelect').value;
       const planningGroupSelect = document.getElementById('planningGroup');
-      
-      // Clear previous planning group options and add a default option.
       planningGroupSelect.innerHTML = '<option value="">--Select Planning Group--</option>';
-      
-      if (!businessUnitId) return; // No business unit selected.
-      
+      if (!businessUnitId) return;
       try {
         const url = `https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups`;
         const response = await fetch(url, {
@@ -175,7 +166,7 @@
         const planningGroups = result.entities;
         planningGroups.forEach(group => {
           const option = document.createElement('option');
-          option.value = group.id;  // Using the planning group ID
+          option.value = group.id;  // Planning group ID
           option.textContent = group.name;
           planningGroupSelect.appendChild(option);
         });
@@ -183,7 +174,7 @@
         console.error(error);
       }
     }
-    
+
     /***** Date Formatting Functions *****/
     function getUKFormattedDate(date) {
       const day = date.getDate();
@@ -193,12 +184,12 @@
              (month < 10 ? '0' + month : month) + '/' +
              year;
     }
-    
+
     /**
-     * Returns an array of 7 date objects for the week.
+     * Returns an array of 7 date objects for a week.
      * Each object contains:
-     *  - raw: ISO format (yyyy-mm-dd) for API calls.
-     *  - uk: UK format (dd/mm/yyyy) for display.
+     *   - raw: ISO format (yyyy-mm-dd) for API calls.
+     *   - uk: UK format (dd/mm/yyyy) for display.
      */
     function getWeekDates(startDate) {
       const dates = [];
@@ -212,13 +203,13 @@
       }
       return dates;
     }
-    
+
     /***** Populate Week Selection Dropdown Until End of 2026 *****/
     function populateWeekSelect() {
       const select = document.getElementById('weekSelect');
       select.innerHTML = '<option value="">--Select Week--</option>';
       const today = new Date();
-      // Calculate Monday of the current week (assuming Monday is the first day)
+      // Calculate Monday of the current week (assuming Monday is day 1)
       const mondayOffset = (today.getDay() === 0 ? -6 : 1 - today.getDay());
       const startOfWeek = new Date(today);
       startOfWeek.setDate(today.getDate() + mondayOffset);
@@ -236,16 +227,20 @@
         select.appendChild(option);
       }
     }
-    
+
     /***** Intraday Data Fetching *****/
-    let weekData = []; // Holds daily data for the selected week.
-    
+    let weekData = []; // Holds daily intraday data for the selected week.
+
     async function fetchIntradayData(date) {
       const businessUnitId = document.getElementById('businessUnitSelect').value;
       if (!businessUnitId) {
         alert("Please select a Business Unit first.");
         return { date: date, data: null };
       }
+      // Get the planning group value: if not set, use null.
+      let planningGroupId = document.getElementById('planningGroup').value;
+      if (planningGroupId === "") planningGroupId = null;
+      
       const url = `https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`;
       try {
         const response = await fetch(url, {
@@ -261,7 +256,8 @@
               "PerformancePredictionData",
               "ScheduleData"
             ],
-            intervalLengthMinutes: 15
+            intervalLengthMinutes: 15,
+            planningGroupIds: [ planningGroupId ]
           })
         });
         if (!response.ok)
@@ -273,7 +269,7 @@
         return { date: date, data: null };
       }
     }
-    
+
     async function fetchDataForWeek(startDate) {
       const dateObjs = getWeekDates(startDate);
       const fetchPromises = dateObjs.map(dateObj =>
@@ -282,26 +278,22 @@
       weekData = await Promise.all(fetchPromises);
       renderDailyTable();
     }
-    
+
     /***** Render Daily Data in a Table *****/
     function renderDailyTable() {
-      const planningGroupFilter = document.getElementById('planningGroup').value;
       const mediaTypeFilter = document.getElementById('mediaType').value;
-      
       let tableHTML = '<table><thead><tr><th>Date</th><th>Daily Summary</th><th>Action</th></tr></thead><tbody>';
-      
+
       weekData.forEach(day => {
-        // Filter rows based on planning group if specified.
+        // In this example, we assume that filtering by planning group or media type could be done
+        // using properties found in day.data (such as day.data.planningGroup or day.data.mediaType). Adjust as needed.
         let showRow = true;
         if (day.data) {
-          // Example: assume day.data contains a planningGroup property with the planning group ID.
-          if (planningGroupFilter && day.data.planningGroup !== planningGroupFilter)
-            showRow = false;
-          if (mediaTypeFilter && day.data.mediaType !== mediaTypeFilter)
-            showRow = false;
+          // Example filtering logic (adjust based on actual API response structure)
+          if (mediaTypeFilter && day.data.mediaType !== mediaTypeFilter) showRow = false;
         }
         if (!showRow) return;
-        
+
         tableHTML += '<tr>';
         tableHTML += `<td>${day.uk}</td>`;
         if (day.data && Object.keys(day.data).length > 0) {
@@ -313,19 +305,26 @@
         tableHTML += `<td><button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")})'>View 15-min Details</button></td>`;
         tableHTML += '</tr>';
       });
-      
+
       tableHTML += '</tbody></table>';
       document.getElementById('dailyTableContainer').innerHTML = tableHTML;
     }
-    
+
     /***** Render 15-Min Interval Data in a Table *****/
     function render15MinTable(day) {
       let tableHTML = `<h3>15-min Intervals for ${day.uk}</h3>`;
       tableHTML += '<table><thead><tr><th>Interval</th><th>Value</th></tr></thead><tbody>';
       
-      if (day.data && day.data.intervals && day.data.intervals.length > 0) {
-        day.data.intervals.forEach(interval => {
-          tableHTML += `<tr><td>${interval.interval}</td><td>${interval.value}</td></tr>`;
+      if (day.data && day.data.result && day.data.result.intradayDataGroupings) {
+        // Loop through each grouping (e.g., Message, Voice) and show detailed interval data.
+        day.data.result.intradayDataGroupings.forEach(group => {
+          if (group.scheduleDataPerInterval) {
+            group.scheduleDataPerInterval.forEach((interval, index) => {
+              if (interval !== null) {
+                tableHTML += `<tr><td>Interval ${index + 1}</td><td>${JSON.stringify(interval)}</td></tr>`;
+              }
+            });
+          }
         });
       } else {
         tableHTML += `<tr><td colspan="2">Data not published for this time frame</td></tr>`;
@@ -334,7 +333,7 @@
       tableHTML += '</tbody></table>';
       document.getElementById('intervalTableContainer').innerHTML = tableHTML;
     }
-    
+
     /***** Tab Navigation *****/
     document.getElementById('dailyTabButton').addEventListener('click', function() {
       setActiveTab('daily');
@@ -342,7 +341,7 @@
     document.getElementById('intervalTabButton').addEventListener('click', function() {
       setActiveTab('interval');
     });
-    
+
     function setActiveTab(tabName) {
       if (tabName === 'daily') {
         document.getElementById('dailyTab').classList.add('active');
@@ -356,27 +355,33 @@
         document.getElementById('intervalTabButton').classList.add('active');
       }
     }
-    
+
     /***** Show 15-min Details *****/
     function show15MinDetails(day) {
       setActiveTab('interval');
       render15MinTable(day);
     }
-    
-    // Refresh data when week or media type changes.
+
+    // Refresh data when week selection or media type changes.
     document.getElementById('weekSelect').addEventListener('change', function(event) {
       const startDate = event.target.value;
       if (startDate) {
         fetchDataForWeek(startDate);
       }
     });
-    
     document.getElementById('mediaType').addEventListener('change', renderDailyTable);
-    document.getElementById('planningGroup').addEventListener('change', renderDailyTable);
-    
-    // When the business unit changes, refresh the planning group dropdown and intraday data if a week is selected.
+
+    // When the business unit changes, update planning groups and refresh intraday data if a week is selected.
     document.getElementById('businessUnitSelect').addEventListener('change', function() {
       fetchPlanningGroups();
+      const weekSelect = document.getElementById('weekSelect');
+      if (weekSelect.value) {
+        fetchDataForWeek(weekSelect.value);
+      }
+    });
+
+    // When the planning group selection changes, refresh the daily data.
+    document.getElementById('planningGroup').addEventListener('change', function() {
       const weekSelect = document.getElementById('weekSelect');
       if (weekSelect.value) {
         fetchDataForWeek(weekSelect.value);
