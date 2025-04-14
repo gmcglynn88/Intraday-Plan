@@ -26,6 +26,18 @@
     .tab-content.active {
       display: block;
     }
+    .no-data { color: #999; font-style: italic; }
+    button {
+      padding: 5px 10px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
   </style>
 </head>
 <body>
@@ -63,7 +75,7 @@
     <select id="mediaType">
       <option value="">--All--</option>
       <option value="Voice">Voice</option>
-      <option value="Chat">Chat</option>
+      <option value="Message">Message</option>
     </select>
   </div>
 
@@ -103,7 +115,7 @@
       const params = {};
       hash.split("&").forEach(part => {
         const item = part.split("=");
-        params[item[0]] = item[1];
+        params[item[0]] = decodeURIComponent(item[1]);
       });
       return params;
     }
@@ -257,7 +269,7 @@
               "ScheduleData"
             ],
             intervalLengthMinutes: 15,
-            planningGroupIds: [ planningGroupId ]
+            planningGroupIds: planningGroupId ? [planningGroupId] : null
           })
         });
         if (!response.ok)
@@ -282,28 +294,50 @@
     /***** Render Daily Data in a Table *****/
     function renderDailyTable() {
       const mediaTypeFilter = document.getElementById('mediaType').value;
-      let tableHTML = '<table><thead><tr><th>Date</th><th>Daily Summary</th><th>Action</th></tr></thead><tbody>';
+      let tableHTML = '<table><thead><tr><th>Date</th><th>Media Type</th><th>Forecast Offered</th><th>Forecast AHT</th><th>Scheduled Time</th><th>Service Level</th><th>ASA</th><th>Occupancy</th><th>Action</th></tr></thead><tbody>';
 
       weekData.forEach(day => {
-        // In this example, we assume that filtering by planning group or media type could be done
-        // using properties found in day.data (such as day.data.planningGroup or day.data.mediaType). Adjust as needed.
-        let showRow = true;
-        if (day.data) {
-          // Example filtering logic (adjust based on actual API response structure)
-          if (mediaTypeFilter && day.data.mediaType !== mediaTypeFilter) showRow = false;
+        if (!day.data || !day.data.result) {
+          tableHTML += `<tr><td>${day.uk}</td><td colspan="8" class="no-data">No data available</td></tr>`;
+          return;
         }
-        if (!showRow) return;
 
-        tableHTML += '<tr>';
-        tableHTML += `<td>${day.uk}</td>`;
-        if (day.data && Object.keys(day.data).length > 0) {
-          const summary = day.data.dailySummary ? JSON.stringify(day.data.dailySummary) : 'Data available';
-          tableHTML += `<td>${summary}</td>`;
-        } else {
-          tableHTML += `<td>Data not published for this time frame</td>`;
-        }
-        tableHTML += `<td><button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")})'>View 15-min Details</button></td>`;
-        tableHTML += '</tr>';
+        day.data.result.intradayDataGroupings.forEach(group => {
+          // Apply media type filter if set
+          if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
+
+          tableHTML += '<tr>';
+          tableHTML += `<td>${day.uk}</td>`;
+          tableHTML += `<td>${group.mediaType}</td>`;
+          
+          // Forecast Data
+          if (group.forecastDataSummary) {
+            tableHTML += `<td>${group.forecastDataSummary.offered ? group.forecastDataSummary.offered.toFixed(2) : '0'}</td>`;
+            tableHTML += `<td>${group.forecastDataSummary.averageHandleTimeSeconds ? group.forecastDataSummary.averageHandleTimeSeconds.toFixed(0) + 's' : '0s'}</td>`;
+          } else {
+            tableHTML += '<td class="no-data">N/A</td><td class="no-data">N/A</td>';
+          }
+          
+          // Schedule Data
+          if (group.scheduleDataSummary) {
+            const hours = group.scheduleDataSummary.onQueueTimeSeconds ? (group.scheduleDataSummary.onQueueTimeSeconds / 3600).toFixed(1) : '0';
+            tableHTML += `<td>${hours}h</td>`;
+          } else {
+            tableHTML += '<td class="no-data">N/A</td>';
+          }
+          
+          // Performance Data
+          if (group.performancePredictionDataSummary) {
+            tableHTML += `<td>${group.performancePredictionDataSummary.serviceLevelPercent ? group.performancePredictionDataSummary.serviceLevelPercent.toFixed(1) + '%' : '0%'}</td>`;
+            tableHTML += `<td>${group.performancePredictionDataSummary.averageSpeedOfAnswerSeconds ? group.performancePredictionDataSummary.averageSpeedOfAnswerSeconds.toFixed(0) + 's' : '0s'}</td>`;
+            tableHTML += `<td>${group.performancePredictionDataSummary.occupancyPercent ? group.performancePredictionDataSummary.occupancyPercent.toFixed(1) + '%' : '0%'}</td>`;
+          } else {
+            tableHTML += '<td class="no-data">N/A</td><td class="no-data">N/A</td><td class="no-data">N/A</td>';
+          }
+          
+          tableHTML += `<td><button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>View Details</button></td>`;
+          tableHTML += '</tr>';
+        });
       });
 
       tableHTML += '</tbody></table>';
@@ -311,23 +345,61 @@
     }
 
     /***** Render 15-Min Interval Data in a Table *****/
-    function render15MinTable(day) {
-      let tableHTML = `<h3>15-min Intervals for ${day.uk}</h3>`;
-      tableHTML += '<table><thead><tr><th>Interval</th><th>Value</th></tr></thead><tbody>';
+    function render15MinTable(day, mediaType) {
+      let tableHTML = `<h3>15-min Intervals for ${day.uk} (${mediaType})</h3>`;
+      tableHTML += '<table><thead><tr><th>Time</th><th>Forecast Offered</th><th>Forecast AHT</th><th>Scheduled Time</th><th>Service Level</th><th>ASA</th><th>Occupancy</th></tr></thead><tbody>';
       
       if (day.data && day.data.result && day.data.result.intradayDataGroupings) {
-        // Loop through each grouping (e.g., Message, Voice) and show detailed interval data.
-        day.data.result.intradayDataGroupings.forEach(group => {
-          if (group.scheduleDataPerInterval) {
-            group.scheduleDataPerInterval.forEach((interval, index) => {
-              if (interval !== null) {
-                tableHTML += `<tr><td>Interval ${index + 1}</td><td>${JSON.stringify(interval)}</td></tr>`;
-              }
-            });
+        // Find the right media type grouping
+        const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
+        if (!grouping) {
+          tableHTML += '<tr><td colspan="7" class="no-data">No data for selected media type</td></tr>';
+        } else {
+          // Calculate time intervals
+          const startDate = new Date(day.data.result.startDate);
+          
+          // Loop through intervals (96 intervals in a day at 15-min intervals)
+          for (let i = 0; i < 96; i++) {
+            const intervalTime = new Date(startDate);
+            intervalTime.setMinutes(intervalTime.getMinutes() + i * 15);
+            const timeStr = intervalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            tableHTML += '<tr>';
+            tableHTML += `<td>${timeStr}</td>`;
+            
+            // Forecast Data
+            if (grouping.forecastDataPerInterval && grouping.forecastDataPerInterval[i]) {
+              const f = grouping.forecastDataPerInterval[i];
+              tableHTML += `<td>${f.offered ? f.offered.toFixed(2) : '0'}</td>`;
+              tableHTML += `<td>${f.averageHandleTimeSeconds ? f.averageHandleTimeSeconds.toFixed(0) + 's' : '0s'}</td>`;
+            } else {
+              tableHTML += '<td>0</td><td>0s</td>';
+            }
+            
+            // Schedule Data
+            if (grouping.scheduleDataPerInterval && grouping.scheduleDataPerInterval[i]) {
+              const s = grouping.scheduleDataPerInterval[i];
+              const hours = s.onQueueTimeSeconds ? (s.onQueueTimeSeconds / 3600).toFixed(2) : '0';
+              tableHTML += `<td>${hours}h</td>`;
+            } else {
+              tableHTML += '<td>0h</td>';
+            }
+            
+            // Performance Data
+            if (grouping.performancePredictionDataPerInterval && grouping.performancePredictionDataPerInterval[i]) {
+              const p = grouping.performancePredictionDataPerInterval[i];
+              tableHTML += `<td>${p.serviceLevelPercent ? p.serviceLevelPercent.toFixed(1) + '%' : '0%'}</td>`;
+              tableHTML += `<td>${p.averageSpeedOfAnswerSeconds ? p.averageSpeedOfAnswerSeconds.toFixed(0) + 's' : '0s'}</td>`;
+              tableHTML += `<td>${p.occupancyPercent ? p.occupancyPercent.toFixed(1) + '%' : '0%'}</td>`;
+            } else {
+              tableHTML += '<td>0%</td><td>0s</td><td>0%</td>';
+            }
+            
+            tableHTML += '</tr>';
           }
-        });
+        }
       } else {
-        tableHTML += `<tr><td colspan="2">Data not published for this time frame</td></tr>`;
+        tableHTML += '<tr><td colspan="7" class="no-data">No data available</td></tr>';
       }
       
       tableHTML += '</tbody></table>';
@@ -357,9 +429,9 @@
     }
 
     /***** Show 15-min Details *****/
-    function show15MinDetails(day) {
+    function show15MinDetails(day, mediaType) {
       setActiveTab('interval');
-      render15MinTable(day);
+      render15MinTable(day, mediaType);
     }
 
     // Refresh data when week selection or media type changes.
