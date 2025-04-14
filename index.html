@@ -88,11 +88,11 @@
   
   <script>
     /***** OAuth Authentication Setup *****/
-    // Note: The implicit grant flow used here does NOT use the client secret.
-    const CLIENT_ID = '4652c8b5-9117-43c6-8e54-77eeb38aebb8';
-    const CLIENT_SECRET = 'txtfN6cb699Lu7tID5n2NSjGwKOU_6NzyghgSk-bVkY'; // For testing only; not used in implicit flow.
+    // Using implicit grant flow—client secret is not used.
+    const CLIENT_ID = '256876c6-470d-4304-8e7d-2038f8a55d95';
+    const CLIENT_SECRET = 'tAdek1cTnnMmygxe-ma3_w_pNMSQkFZf-FQGXVeoVhg'; // For testing only.
     const REGION = 'mypurecloud.ie';
-    const REDIRECT_URI = 'https://gmcglynn88.github.io/IPI-changes-on-the-fly/';
+    const REDIRECT_URI = 'https://gmcglynn88.github.io/Intraday-Plan/';
     const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
     
     // Global variable to store the access token.
