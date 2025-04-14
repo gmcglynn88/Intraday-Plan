@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Intraday Weekly Plan with Planning Groups</title>
+  <title>Intraday Weekly Plan</title>
   <meta charset="UTF-8">
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -38,75 +38,37 @@
     button:hover {
       background: #45a049;
     }
-    .summary-row {
-      background-color: #f8f8f8;
-      font-weight: bold;
-      margin-bottom: 10px;
-      padding: 8px;
-      border: 1px solid #ccc;
-    }
     .summary-table {
       width: 100%;
       border-collapse: collapse;
+      margin-bottom: 20px;
     }
-    .summary-table td {
+    .summary-table th, .summary-table td {
       padding: 8px;
-      border: none;
+      text-align: left;
+      border: 1px solid #ccc;
     }
-    .time-toggle {
-      margin-left: 10px;
-      font-size: 0.9em;
-      color: #666;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-    .settings-panel {
-      background: #f5f5f5;
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .settings-panel label {
-      margin-right: 15px;
-    }
-    .settings-panel select {
-      margin-right: 20px;
+    .summary-table th {
+      background: #f0f0f0;
     }
     select {
       padding: 5px;
       min-width: 200px;
+    }
+    .loading {
+      color: #666;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
   <h1>Intraday Weekly Plan</h1>
 
-  <!-- Settings Panel -->
-  <div class="settings-panel">
-    <label>
-      Time Format:
-      <select id="timeFormatSelect">
-        <option value="seconds">Seconds</option>
-        <option value="hms">hh:mm:ss</option>
-      </select>
-    </label>
-    <label>
-      Number Precision:
-      <select id="precisionSelect">
-        <option value="0">0</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-      </select>
-    </label>
-    <button onclick="applySettings()">Apply Settings</button>
-  </div>
-
   <!-- Business Unit Dropdown -->
   <div class="container">
     <label for="businessUnitSelect">Select Business Unit:</label>
-    <select id="businessUnitSelect">
-      <option value="">--Select Business Unit--</option>
+    <select id="businessUnitSelect" disabled>
+      <option value="">-- Loading Business Units --</option>
     </select>
   </div>
 
@@ -114,7 +76,7 @@
   <div class="container">
     <label for="planningGroup">Select Planning Group:</label>
     <select id="planningGroup" disabled>
-      <option value="">--Select Planning Group--</option>
+      <option value="">-- Select Business Unit First --</option>
     </select>
   </div>
 
@@ -122,7 +84,7 @@
   <div class="container">
     <label for="weekSelect">Select Week:</label>
     <select id="weekSelect" disabled>
-      <option value="">--Select Week--</option>
+      <option value="">-- Loading Weeks --</option>
     </select>
   </div>
 
@@ -144,130 +106,117 @@
     </div>
     <div id="dailyTab" class="tab-content active">
       <h2>Daily Data</h2>
-      <div id="weeklySummary"></div>
+      <div id="weeklySummary" class="loading">Select a week to view data</div>
       <div id="dailyTableContainer"></div>
     </div>
     <div id="intervalTab" class="tab-content">
       <h2>15-min Interval Data</h2>
-      <div id="intervalTableContainer"></div>
+      <div id="intervalTableContainer" class="loading">Select a day to view interval data</div>
     </div>
   </div>
 
   <script>
-    /***** Configuration *****/
+    // Simple configuration
     const config = {
-      timeFormat: 'seconds',
-      precision: 1,
+      timeFormat: 'seconds', // 'seconds' or 'hms'
+      precision: 1,          // decimal places
       CLIENT_ID: '256876c6-470d-4304-8e7d-2038f8a55d95',
-      REGION: 'mypurecloud.ie',
-      REDIRECT_URI: window.location.href.split('?')[0].split('#')[0]
+      REGION: 'mypurecloud.ie'
     };
 
-    let accessToken = '';
-    let planningGroupName = '';
-    let weekData = [];
+    // State management
+    const state = {
+      accessToken: null,
+      planningGroupName: '',
+      weekData: []
+    };
 
-    /***** Initialization *****/
+    // Initialize the application
     document.addEventListener('DOMContentLoaded', function() {
-      initializeApp();
-    });
-
-    function initializeApp() {
-      // Check for access token in URL hash
-      const hashParams = parseHashParams();
-      if (hashParams.access_token) {
-        accessToken = hashParams.access_token;
-        window.history.replaceState({}, document.title, window.location.pathname);
-        loadSettings();
-        fetchBusinessUnits();
-        populateWeekSelect();
-      } else {
-        // Redirect to auth if no token
-        const authUrl = `https://login.${config.REGION}/oauth/authorize?response_type=token&client_id=${config.CLIENT_ID}&redirect_uri=${encodeURIComponent(config.REDIRECT_URI)}`;
-        window.location.href = authUrl;
-      }
-
-      // Set up event listeners
-      setupEventListeners();
-    }
-
-    function setupEventListeners() {
-      document.getElementById('businessUnitSelect').addEventListener('change', function() {
-        const buId = this.value;
-        document.getElementById('planningGroup').disabled = !buId;
-        if (buId) {
-          fetchPlanningGroups(buId);
-        } else {
-          document.getElementById('planningGroup').innerHTML = '<option value="">--Select Planning Group--</option>';
-        }
-      });
-
-      document.getElementById('planningGroup').addEventListener('change', function() {
-        planningGroupName = this.options[this.selectedIndex].text;
-        document.getElementById('weekSelect').disabled = !this.value;
-      });
-
-      document.getElementById('weekSelect').addEventListener('change', function() {
-        if (this.value) {
-          fetchDataForWeek(this.value);
-        }
-      });
-
-      document.getElementById('mediaType').addEventListener('change', renderDailyTable);
-
-      document.getElementById('dailyTabButton').addEventListener('click', function() {
-        setActiveTab('daily');
-      });
-
-      document.getElementById('intervalTabButton').addEventListener('click', function() {
-        setActiveTab('interval');
-      });
-    }
-
-    /***** Helper Functions *****/
-    function parseHashParams() {
-      const hash = window.location.hash.substring(1);
-      return hash.split('&').reduce(function(result, item) {
+      // First check for access token in URL hash
+      const hashParams = window.location.hash.substring(1).split('&').reduce(function(result, item) {
         const parts = item.split('=');
         result[parts[0]] = parts[1];
         return result;
       }, {});
+
+      if (hashParams.access_token) {
+        state.accessToken = hashParams.access_token;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        initializeApp();
+      } else {
+        // Redirect to auth if no token
+        const redirectUri = encodeURIComponent(window.location.href.split('?')[0].split('#')[0]);
+        window.location.href = `https://login.${config.REGION}/oauth/authorize?response_type=token&client_id=${config.CLIENT_ID}&redirect_uri=${redirectUri}`;
+      }
+    });
+
+    function initializeApp() {
+      // Set up event listeners
+      document.getElementById('businessUnitSelect').addEventListener('change', onBusinessUnitChange);
+      document.getElementById('planningGroup').addEventListener('change', onPlanningGroupChange);
+      document.getElementById('weekSelect').addEventListener('change', onWeekSelectChange);
+      document.getElementById('mediaType').addEventListener('change', renderDailyTable);
+      document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
+      document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
+
+      // Load initial data
+      fetchBusinessUnits();
+      populateWeekSelect();
     }
 
-    function loadSettings() {
-      const savedSettings = localStorage.getItem('intradaySettings');
-      if (savedSettings) {
-        Object.assign(config, JSON.parse(savedSettings));
-        document.getElementById('timeFormatSelect').value = config.timeFormat;
-        document.getElementById('precisionSelect').value = config.precision.toString();
+    function onBusinessUnitChange() {
+      const buId = this.value;
+      const planningGroupSelect = document.getElementById('planningGroup');
+      
+      planningGroupSelect.innerHTML = '<option value="">-- Loading Planning Groups --</option>';
+      planningGroupSelect.disabled = true;
+      
+      if (buId) {
+        fetchPlanningGroups(buId);
+      } else {
+        planningGroupSelect.innerHTML = '<option value="">-- Select Business Unit First --</option>';
+        planningGroupSelect.disabled = true;
       }
     }
 
-    function saveSettings() {
-      localStorage.setItem('intradaySettings', JSON.stringify({
-        timeFormat: config.timeFormat,
-        precision: config.precision
-      }));
+    function onPlanningGroupChange() {
+      state.planningGroupName = this.options[this.selectedIndex].text;
+      document.getElementById('weekSelect').disabled = !this.value;
     }
 
-    function applySettings() {
-      config.timeFormat = document.getElementById('timeFormatSelect').value;
-      config.precision = parseInt(document.getElementById('precisionSelect').value);
-      saveSettings();
-      renderAllData();
+    function onWeekSelectChange() {
+      if (this.value) {
+        document.getElementById('weeklySummary').className = 'loading';
+        document.getElementById('weeklySummary').textContent = 'Loading data...';
+        fetchDataForWeek(this.value);
+      }
     }
 
+    function setActiveTab(tabName) {
+      document.getElementById('dailyTab').classList.toggle('active', tabName === 'daily');
+      document.getElementById('intervalTab').classList.toggle('active', tabName === 'interval');
+      document.getElementById('dailyTabButton').classList.toggle('active', tabName === 'daily');
+      document.getElementById('intervalTabButton').classList.toggle('active', tabName === 'interval');
+    }
+
+    // Helper functions
     function formatTime(seconds) {
+      if (!seconds) return '0s';
+      seconds = Math.round(seconds);
+      
       if (config.timeFormat === 'hms') {
-        return secondsToHMS(seconds);
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` 
+                     : `${m}:${s.toString().padStart(2, '0')}`;
       }
-      return seconds === 0 ? '0s' : Math.round(seconds) + 's';
+      return seconds + 's';
     }
 
     function formatHours(seconds) {
-      if (config.timeFormat === 'hms') {
-        return secondsToHMS(seconds);
-      }
+      if (!seconds) return '0h';
       return (seconds / 3600).toFixed(config.precision) + 'h';
     }
 
@@ -275,19 +224,29 @@
       return num.toFixed(config.precision);
     }
 
-    function secondsToHMS(seconds) {
-      if (!seconds) return '0:00';
-      seconds = Math.round(seconds);
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = Math.floor(seconds % 60);
-      return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` 
-                   : `${m}:${s.toString().padStart(2, '0')}`;
-    }
-
     function getDayOfWeek(dateStr) {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { weekday: 'long' });
+      try {
+        // Try parsing as UK format (DD/MM/YYYY)
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          const date = new Date(year, month, day);
+          if (!isNaN(date.getTime())) {
+            return date.toLocaleDateString('en-US', { weekday: 'long' });
+          }
+        }
+        
+        // Fallback to ISO format
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+      } catch (e) {
+        console.error('Error parsing date:', dateStr, e);
+      }
+      return 'Unknown';
     }
 
     function getUKFormattedDate(date) {
@@ -302,6 +261,7 @@
     function getWeekDates(startDate) {
       const dates = [];
       const start = new Date(startDate);
+      
       for (let i = 0; i < 7; i++) {
         const currentDate = new Date(start);
         currentDate.setDate(start.getDate() + i);
@@ -309,19 +269,20 @@
         const uk = getUKFormattedDate(currentDate);
         dates.push({ raw, uk });
       }
+      
       return dates;
     }
 
     function populateWeekSelect() {
       const select = document.getElementById('weekSelect');
-      select.innerHTML = '<option value="">--Select Week--</option>';
+      select.innerHTML = '<option value="">-- Select Week --</option>';
       
       const today = new Date();
       const currentYear = today.getFullYear();
       
       // Start from the most recent Monday
       const dayOfWeek = today.getDay();
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // adjust when day is Sunday
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
       const monday = new Date(today.setDate(diff));
       
       // Create options for 52 weeks (1 year)
@@ -350,21 +311,20 @@
       select.disabled = false;
     }
 
-    /***** Data Fetching Functions *****/
+    // Data fetching functions
     async function fetchBusinessUnits() {
       try {
         const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits`, {
           headers: {
-            'Authorization': 'Bearer ' + accessToken
+            'Authorization': 'Bearer ' + state.accessToken
           }
         });
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error('Failed to fetch business units');
         
         const data = await response.json();
         const select = document.getElementById('businessUnitSelect');
+        select.innerHTML = '<option value="">-- Select Business Unit --</option>';
         
         data.entities.forEach(bu => {
           const option = document.createElement('option');
@@ -373,9 +333,10 @@
           select.appendChild(option);
         });
         
+        select.disabled = false;
       } catch (error) {
         console.error('Error fetching business units:', error);
-        alert('Failed to load business units. Please refresh and try again.');
+        document.getElementById('businessUnitSelect').innerHTML = '<option value="">-- Error loading business units --</option>';
       }
     }
 
@@ -383,17 +344,15 @@
       try {
         const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups`, {
           headers: {
-            'Authorization': 'Bearer ' + accessToken
+            'Authorization': 'Bearer ' + state.accessToken
           }
         });
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error('Failed to fetch planning groups');
         
         const data = await response.json();
         const select = document.getElementById('planningGroup');
-        select.innerHTML = '<option value="">--Select Planning Group--</option>';
+        select.innerHTML = '<option value="">-- Select Planning Group --</option>';
         
         data.entities.forEach(pg => {
           const option = document.createElement('option');
@@ -403,10 +362,9 @@
         });
         
         select.disabled = false;
-        
       } catch (error) {
         console.error('Error fetching planning groups:', error);
-        document.getElementById('planningGroup').innerHTML = '<option value="">Error loading groups</option>';
+        document.getElementById('planningGroup').innerHTML = '<option value="">-- Error loading groups --</option>';
       }
     }
 
@@ -418,14 +376,12 @@
         return { date: date, data: null, error: 'No business unit selected' };
       }
       
-      const url = `https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`;
-      
       try {
-        const response = await fetch(url, {
+        const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + accessToken
+            'Authorization': 'Bearer ' + state.accessToken
           },
           body: JSON.stringify({
             businessUnitDate: date,
@@ -444,7 +400,6 @@
         
         const data = await response.json();
         return { date: date, data: data };
-        
       } catch (error) {
         console.error('Error fetching intraday data:', error);
         return { date: date, data: null, error: error.message };
@@ -457,11 +412,11 @@
         fetchIntradayData(dateObj.raw).then(result => ({ ...result, uk: dateObj.uk }))
       );
       
-      weekData = await Promise.all(fetchPromises);
+      state.weekData = await Promise.all(fetchPromises);
       renderAllData();
     }
 
-    /***** Rendering Functions *****/
+    // Rendering functions
     function renderAllData() {
       renderDailyTable();
       
@@ -470,7 +425,7 @@
         if (intervalTitle) {
           const match = intervalTitle.textContent.match(/for (\d{2}\/\d{2}\/\d{4}) \((Voice|Message)\)/);
           if (match) {
-            const day = weekData.find(d => d.uk === match[1]);
+            const day = state.weekData.find(d => d.uk === match[1]);
             if (day) {
               render15MinTable(day, match[2]);
             }
@@ -511,12 +466,13 @@
         count: 0
       };
 
-      weekData.forEach(day => {
+      state.weekData.forEach(day => {
         if (!day.data || !day.data.result) {
+          const dayOfWeek = getDayOfWeek(day.uk);
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
-              <td>${getDayOfWeek(day.raw)}</td>
+              <td>${dayOfWeek}</td>
               <td colspan="9" class="no-data">${day.error || 'No data available'}</td>
             </tr>
           `;
@@ -541,11 +497,13 @@
           weeklyTotals.occupancy += occupancy;
           weeklyTotals.count++;
 
+          const dayOfWeek = getDayOfWeek(day.uk);
+          
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
-              <td>${getDayOfWeek(day.raw)}</td>
-              <td>${planningGroupName}</td>
+              <td>${dayOfWeek}</td>
+              <td>${state.planningGroupName}</td>
               <td>${group.mediaType}</td>
               <td>${Math.round(offered)}</td>
               <td>${formatTime(aht)}</td>
@@ -563,28 +521,42 @@
         });
       });
 
+      // Calculate weekly averages
       const weeklyAvgAHT = weeklyTotals.count > 0 ? weeklyTotals.aht / weeklyTotals.count : 0;
       const weeklyAvgSL = weeklyTotals.count > 0 ? weeklyTotals.serviceLevel / weeklyTotals.count : 0;
       const weeklyAvgASA = weeklyTotals.count > 0 ? weeklyTotals.asa / weeklyTotals.count : 0;
       const weeklyAvgOccupancy = weeklyTotals.count > 0 ? weeklyTotals.occupancy / weeklyTotals.count : 0;
 
+      // Create weekly summary
       const summaryHTML = `
-        <div class="summary-row">
-          <table class="summary-table">
+        <table class="summary-table">
+          <thead>
             <tr>
-              <td><strong>Weekly Totals/Averages:</strong></td>
-              <td>Forecast Offered: ${Math.round(weeklyTotals.offered)}</td>
-              <td>Avg AHT: ${formatTime(weeklyAvgAHT)}</td>
-              <td>Total Scheduled: ${formatHours(weeklyTotals.scheduledTime)}</td>
-              <td>Avg SL: ${formatNumber(weeklyAvgSL)}%</td>
-              <td>Avg ASA: ${formatTime(weeklyAvgASA)}</td>
-              <td>Avg Occupancy: ${formatNumber(weeklyAvgOccupancy)}%</td>
+              <th>Summary</th>
+              <th>Forecast Offered</th>
+              <th>Avg AHT</th>
+              <th>Total Scheduled</th>
+              <th>Avg SL</th>
+              <th>Avg ASA</th>
+              <th>Avg Occupancy</th>
             </tr>
-          </table>
-        </div>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Weekly Totals/Averages</td>
+              <td>${Math.round(weeklyTotals.offered)}</td>
+              <td>${formatTime(weeklyAvgAHT)}</td>
+              <td>${formatHours(weeklyTotals.scheduledTime)}</td>
+              <td>${formatNumber(weeklyAvgSL)}%</td>
+              <td>${formatTime(weeklyAvgASA)}</td>
+              <td>${formatNumber(weeklyAvgOccupancy)}%</td>
+            </tr>
+          </tbody>
+        </table>
       `;
 
       document.getElementById('weeklySummary').innerHTML = summaryHTML;
+      document.getElementById('weeklySummary').className = '';
       tableHTML += '</tbody></table>';
       document.getElementById('dailyTableContainer').innerHTML = tableHTML;
     }
@@ -650,13 +622,7 @@
       
       tableHTML += '</tbody></table>';
       document.getElementById('intervalTableContainer').innerHTML = tableHTML;
-    }
-
-    function setActiveTab(tabName) {
-      document.getElementById('dailyTab').classList.toggle('active', tabName === 'daily');
-      document.getElementById('intervalTab').classList.toggle('active', tabName === 'interval');
-      document.getElementById('dailyTabButton').classList.toggle('active', tabName === 'daily');
-      document.getElementById('intervalTabButton').classList.toggle('active', tabName === 'interval');
+      document.getElementById('intervalTableContainer').className = '';
     }
 
     function show15MinDetails(day, mediaType) {
