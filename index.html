@@ -41,6 +41,17 @@
     .summary-row {
       background-color: #f8f8f8;
       font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid #ccc;
+    }
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table td {
+      padding: 8px;
+      border: none;
     }
     .time-toggle {
       margin-left: 10px;
@@ -49,10 +60,43 @@
       cursor: pointer;
       text-decoration: underline;
     }
+    .settings-panel {
+      background: #f5f5f5;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .settings-panel label {
+      margin-right: 15px;
+    }
+    .settings-panel select {
+      margin-right: 20px;
+    }
   </style>
 </head>
 <body>
   <h1>Intraday Weekly Plan</h1>
+
+  <!-- Settings Panel -->
+  <div class="settings-panel">
+    <label>
+      Time Format:
+      <select id="timeFormatSelect">
+        <option value="seconds">Seconds</option>
+        <option value="hms">hh:mm:ss</option>
+      </select>
+    </label>
+    <label>
+      Number Precision:
+      <select id="precisionSelect">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+      </select>
+    </label>
+    <button onclick="applySettings()">Apply Settings</button>
+  </div>
 
   <!-- Business Unit Dropdown -->
   <div class="container">
@@ -98,13 +142,13 @@
     </div>
     <div id="dailyTab" class="tab-content active">
       <h2>Daily Data</h2>
-      <div id="weeklySummary" class="summary-row"></div>
+      <div id="weeklySummary"></div>
       <div id="dailyTableContainer">
         <!-- Daily summary table renders here -->
       </div>
     </div>
     <div id="intervalTab" class="tab-content">
-      <h2>15-min Interval Data <span id="timeFormatToggle" class="time-toggle">(Show as hh:mm:ss)</span></h2>
+      <h2>15-min Interval Data</h2>
       <div id="intervalTableContainer">
         <!-- 15-min interval table renders here -->
       </div>
@@ -112,17 +156,58 @@
   </div>
 
   <script>
-    /***** OAuth Authentication Setup *****/
-    const CLIENT_ID = '256876c6-470d-4304-8e7d-2038f8a55d95';
-    const CLIENT_SECRET = 'tAdek1cTnnMmygxe-ma3_w_pNMSQkFZf-FQGXVeoVhg';
-    const REGION = 'mypurecloud.ie';
-    const REDIRECT_URI = 'https://gmcglynn88.github.io/Intraday-Plan/';
-    const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    /***** Configuration *****/
+    const config = {
+      timeFormat: 'seconds', // 'seconds' or 'hms'
+      precision: 1,          // decimal places
+      CLIENT_ID: '256876c6-470d-4304-8e7d-2038f8a55d95',
+      CLIENT_SECRET: 'tAdek1cTnnMmygxe-ma3_w_pNMSQkFZf-FQGXVeoVhg',
+      REGION: 'mypurecloud.ie',
+      REDIRECT_URI: 'https://gmcglynn88.github.io/Intraday-Plan/'
+    };
 
     let accessToken = '';
-    let showTimeAsHMS = false; // Toggle for time format
-    let planningGroupName = ''; // Store the selected planning group name
+    let planningGroupName = '';
+    let weekData = [];
 
+    /***** Initialization *****/
+    function init() {
+      const params = parseHashParams();
+      if (params.access_token) {
+        accessToken = params.access_token;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        loadSettings();
+        fetchBusinessUnits();
+        populateWeekSelect();
+      } else {
+        window.location.href = `https://login.${config.REGION}/oauth/authorize?client_id=${config.CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(config.REDIRECT_URI)}`;
+      }
+    }
+
+    function loadSettings() {
+      const savedSettings = localStorage.getItem('intradaySettings');
+      if (savedSettings) {
+        Object.assign(config, JSON.parse(savedSettings));
+      }
+      document.getElementById('timeFormatSelect').value = config.timeFormat;
+      document.getElementById('precisionSelect').value = config.precision.toString();
+    }
+
+    function saveSettings() {
+      localStorage.setItem('intradaySettings', JSON.stringify({
+        timeFormat: config.timeFormat,
+        precision: config.precision
+      }));
+    }
+
+    function applySettings() {
+      config.timeFormat = document.getElementById('timeFormatSelect').value;
+      config.precision = parseInt(document.getElementById('precisionSelect').value);
+      saveSettings();
+      renderAllData();
+    }
+
+    /***** Helper Functions *****/
     function parseHashParams() {
       const hash = window.location.hash.substring(1);
       const params = {};
@@ -133,19 +218,24 @@
       return params;
     }
 
-    window.addEventListener("load", function() {
-      const params = parseHashParams();
-      if (params.access_token) {
-        accessToken = params.access_token;
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else {
-        window.location.href = AUTH_URL;
+    function formatTime(seconds) {
+      if (config.timeFormat === 'hms') {
+        return secondsToHMS(seconds);
       }
-      fetchBusinessUnits();
-      populateWeekSelect();
-    });
+      return seconds === 0 ? '0s' : seconds.toFixed(0) + 's';
+    }
 
-    /***** Helper Functions *****/
+    function formatHours(seconds) {
+      if (config.timeFormat === 'hms') {
+        return secondsToHMS(seconds);
+      }
+      return (seconds / 3600).toFixed(config.precision) + 'h';
+    }
+
+    function formatNumber(num) {
+      return num.toFixed(config.precision);
+    }
+
     function secondsToHMS(seconds) {
       if (!seconds) return '0:00';
       const h = Math.floor(seconds / 3600);
@@ -156,9 +246,8 @@
     }
 
     function getDayOfWeek(dateStr) {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const date = new Date(dateStr);
-      return days[date.getDay()];
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
     }
 
     function getUKFormattedDate(date) {
@@ -183,36 +272,13 @@
       return dates;
     }
 
-    /***** Populate Week Selection Dropdown Until End of 2026 *****/
-    function populateWeekSelect() {
-      const select = document.getElementById('weekSelect');
-      select.innerHTML = '<option value="">--Select Week--</option>';
-      const today = new Date();
-      const mondayOffset = (today.getDay() === 0 ? -6 : 1 - today.getDay());
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() + mondayOffset);
-      const endDate = new Date('2026-12-31');
-      for (let d = new Date(startOfWeek); d <= endDate; d.setDate(d.getDate() + 7)) {
-        const weekStart = new Date(d);
-        const weekEnd = new Date(d);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        const weekStartStr = getUKFormattedDate(weekStart);
-        const weekEndStr = getUKFormattedDate(weekEnd);
-        const isoWeekStart = weekStart.toISOString().split('T')[0];
-        const option = document.createElement('option');
-        option.value = isoWeekStart;
-        option.textContent = `Week ${weekStartStr} - ${weekEndStr}`;
-        select.appendChild(option);
-      }
-    }
-
     /***** Data Fetching Functions *****/
     async function fetchBusinessUnits() {
       try {
-        const response = await fetch('https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits', {
+        const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits`, {
           headers: {
             'Content-Type': 'application/json',
-            ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
+            'Authorization': 'Bearer ' + accessToken
           }
         });
         if (!response.ok) throw new Error('Error fetching business units: ' + response.statusText);
@@ -227,6 +293,7 @@
         });
       } catch (error) {
         console.error(error);
+        alert('Failed to load business units. Please refresh and try again.');
       }
     }
 
@@ -236,11 +303,11 @@
       planningGroupSelect.innerHTML = '<option value="">--Select Planning Group--</option>';
       if (!businessUnitId) return;
       try {
-        const url = `https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups`;
+        const url = `https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups`;
         const response = await fetch(url, {
           headers: {
             'Content-Type': 'application/json',
-            ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
+            'Authorization': 'Bearer ' + accessToken
           }
         });
         if (!response.ok) throw new Error('Error fetching planning groups: ' + response.statusText);
@@ -260,7 +327,6 @@
     async function fetchIntradayData(date) {
       const businessUnitId = document.getElementById('businessUnitSelect').value;
       if (!businessUnitId) {
-        alert("Please select a Business Unit first.");
         return { date: date, data: null };
       }
       
@@ -271,13 +337,13 @@
         planningGroupName = "All Groups";
       }
       
-      const url = `https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`;
+      const url = `https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`;
       try {
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
+            'Authorization': 'Bearer ' + accessToken
           },
           body: JSON.stringify({
             businessUnitDate: date,
@@ -290,13 +356,17 @@
             planningGroupIds: planningGroupId ? [planningGroupId] : null
           })
         });
-        if (!response.ok)
+        if (!response.ok) {
+          if (response.status === 404) {
+            return { date: date, data: null, error: 'No data available for this date' };
+          }
           throw new Error(`Error fetching data for ${date}: ${response.statusText}`);
+        }
         const data = await response.json();
         return { date: date, data: data };
       } catch (error) {
         console.error('API Error:', error);
-        return { date: date, data: null };
+        return { date: date, data: null, error: error.message };
       }
     }
 
@@ -306,10 +376,30 @@
         fetchIntradayData(dateObj.raw).then(result => ({ ...result, uk: dateObj.uk }))
       );
       weekData = await Promise.all(fetchPromises);
-      renderDailyTable();
+      renderAllData();
     }
 
     /***** Rendering Functions *****/
+    function renderAllData() {
+      renderDailyTable();
+      
+      // If interval tab is active, re-render it with current data
+      if (document.getElementById('intervalTab').classList.contains('active')) {
+        const intervalTitle = document.querySelector('#intervalTableContainer h3');
+        if (intervalTitle) {
+          const match = intervalTitle.textContent.match(/for (\d{2}\/\d{2}\/\d{4}) \((Voice|Message)\)/);
+          if (match) {
+            const date = match[1];
+            const mediaType = match[2];
+            const day = weekData.find(d => d.uk === date);
+            if (day) {
+              render15MinTable(day, mediaType);
+            }
+          }
+        }
+      }
+    }
+
     function renderDailyTable() {
       const mediaTypeFilter = document.getElementById('mediaType').value;
       let tableHTML = '<table><thead><tr><th>Date</th><th>Day</th><th>Planning Group</th><th>Media Type</th><th>Forecast Offered</th><th>Forecast AHT</th><th>Scheduled Time</th><th>Service Level</th><th>ASA</th><th>Occupancy</th><th>Action</th></tr></thead><tbody>';
@@ -327,7 +417,11 @@
 
       weekData.forEach(day => {
         if (!day.data || !day.data.result) {
-          tableHTML += `<tr><td>${day.uk}</td><td colspan="10" class="no-data">No data available</td></tr>`;
+          tableHTML += `<tr>
+            <td>${day.uk}</td>
+            <td>${getDayOfWeek(day.raw)}</td>
+            <td colspan="9" class="no-data">${day.error || 'No data available'}</td>
+          </tr>`;
           return;
         }
 
@@ -357,33 +451,34 @@
           tableHTML += `<td>${planningGroupName}</td>`;
           tableHTML += `<td>${group.mediaType}</td>`;
           tableHTML += `<td>${Math.round(offered)}</td>`;
-          tableHTML += `<td>${showTimeAsHMS ? secondsToHMS(aht) : aht.toFixed(0) + 's'}</td>`;
-          tableHTML += `<td>${showTimeAsHMS ? secondsToHMS(scheduledTime) : (scheduledTime / 3600).toFixed(1) + 'h'}</td>`;
-          tableHTML += `<td>${serviceLevel.toFixed(1)}%</td>`;
-          tableHTML += `<td>${showTimeAsHMS ? secondsToHMS(asa) : asa.toFixed(0) + 's'}</td>`;
-          tableHTML += `<td>${occupancy.toFixed(1)}%</td>`;
+          tableHTML += `<td>${formatTime(aht)}</td>`;
+          tableHTML += `<td>${formatHours(scheduledTime)}</td>`;
+          tableHTML += `<td>${formatNumber(serviceLevel)}%</td>`;
+          tableHTML += `<td>${formatTime(asa)}</td>`;
+          tableHTML += `<td>${formatNumber(occupancy)}%</td>`;
           tableHTML += `<td><button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>View Details</button></td>`;
           tableHTML += '</tr>';
         });
       });
 
-      // Calculate weekly averages
+      // Create weekly summary
       const weeklyAvgAHT = weeklyTotals.count > 0 ? weeklyTotals.aht / weeklyTotals.count : 0;
       const weeklyAvgSL = weeklyTotals.count > 0 ? weeklyTotals.serviceLevel / weeklyTotals.count : 0;
       const weeklyAvgASA = weeklyTotals.count > 0 ? weeklyTotals.asa / weeklyTotals.count : 0;
       const weeklyAvgOccupancy = weeklyTotals.count > 0 ? weeklyTotals.occupancy / weeklyTotals.count : 0;
 
-      // Create weekly summary
       const summaryHTML = `
-        <div class="summary-row">
-          <strong>Weekly Totals/Averages:</strong>
-          Forecast Offered: ${Math.round(weeklyTotals.offered)} | 
-          Avg AHT: ${showTimeAsHMS ? secondsToHMS(weeklyAvgAHT) : weeklyAvgAHT.toFixed(0) + 's'} | 
-          Total Scheduled: ${showTimeAsHMS ? secondsToHMS(weeklyTotals.scheduledTime) : (weeklyTotals.scheduledTime / 3600).toFixed(1) + 'h'} | 
-          Avg SL: ${weeklyAvgSL.toFixed(1)}% | 
-          Avg ASA: ${showTimeAsHMS ? secondsToHMS(weeklyAvgASA) : weeklyAvgASA.toFixed(0) + 's'} | 
-          Avg Occupancy: ${weeklyAvgOccupancy.toFixed(1)}%
-        </div>
+        <table class="summary-table">
+          <tr>
+            <td><strong>Weekly Totals/Averages:</strong></td>
+            <td>Forecast Offered: ${Math.round(weeklyTotals.offered)}</td>
+            <td>Avg AHT: ${formatTime(weeklyAvgAHT)}</td>
+            <td>Total Scheduled: ${formatHours(weeklyTotals.scheduledTime)}</td>
+            <td>Avg SL: ${formatNumber(weeklyAvgSL)}%</td>
+            <td>Avg ASA: ${formatTime(weeklyAvgASA)}</td>
+            <td>Avg Occupancy: ${formatNumber(weeklyAvgOccupancy)}%</td>
+          </tr>
+        </table>
       `;
       document.getElementById('weeklySummary').innerHTML = summaryHTML;
 
@@ -392,7 +487,7 @@
     }
 
     function render15MinTable(day, mediaType) {
-      let tableHTML = `<h3>15-min Intervals for ${day.uk} (${mediaType}) <span class="time-toggle" onclick="toggleTimeFormat()">(${showTimeAsHMS ? 'Show as seconds' : 'Show as hh:mm:ss'})</span></h3>`;
+      let tableHTML = `<h3>15-min Intervals for ${day.uk} (${mediaType})</h3>`;
       tableHTML += '<table><thead><tr><th>Time</th><th>Forecast Offered</th><th>Forecast AHT</th><th>Scheduled Time</th><th>Service Level</th><th>ASA</th><th>Occupancy</th></tr></thead><tbody>';
       
       if (day.data && day.data.result && day.data.result.intradayDataGroupings) {
@@ -426,28 +521,27 @@
             if (hasForecastData) {
               const f = grouping.forecastDataPerInterval[i];
               tableHTML += `<td>${Math.round(f.offered || 0)}</td>`;
-              tableHTML += `<td>${showTimeAsHMS ? secondsToHMS(f.averageHandleTimeSeconds || 0) : (f.averageHandleTimeSeconds || 0).toFixed(0) + 's'}</td>`;
+              tableHTML += `<td>${formatTime(f.averageHandleTimeSeconds || 0)}</td>`;
             } else {
-              tableHTML += '<td>0</td><td>0s</td>';
+              tableHTML += '<td>0</td><td>0</td>';
             }
             
             // Schedule Data
             if (hasScheduleData) {
               const s = grouping.scheduleDataPerInterval[i];
-              const timeValue = s.onQueueTimeSeconds || 0;
-              tableHTML += `<td>${showTimeAsHMS ? secondsToHMS(timeValue) : (timeValue / 3600).toFixed(2) + 'h'}</td>`;
+              tableHTML += `<td>${formatHours(s.onQueueTimeSeconds || 0)}</td>`;
             } else {
-              tableHTML += '<td>0h</td>';
+              tableHTML += '<td>0</td>';
             }
             
             // Performance Data
             if (hasPerformanceData) {
               const p = grouping.performancePredictionDataPerInterval[i];
-              tableHTML += `<td>${p.serviceLevelPercent ? p.serviceLevelPercent.toFixed(1) + '%' : '0%'}</td>`;
-              tableHTML += `<td>${showTimeAsHMS ? secondsToHMS(p.averageSpeedOfAnswerSeconds || 0) : (p.averageSpeedOfAnswerSeconds || 0).toFixed(0) + 's'}</td>`;
-              tableHTML += `<td>${p.occupancyPercent ? p.occupancyPercent.toFixed(1) + '%' : '0%'}</td>`;
+              tableHTML += `<td>${p.serviceLevelPercent ? formatNumber(p.serviceLevelPercent) + '%' : '0%'}</td>`;
+              tableHTML += `<td>${formatTime(p.averageSpeedOfAnswerSeconds || 0)}</td>`;
+              tableHTML += `<td>${p.occupancyPercent ? formatNumber(p.occupancyPercent) + '%' : '0%'}</td>`;
             } else {
-              tableHTML += '<td>0%</td><td>0s</td><td>0%</td>';
+              tableHTML += '<td>0%</td><td>0</td><td>0%</td>';
             }
             
             tableHTML += '</tr>';
@@ -461,7 +555,7 @@
       document.getElementById('intervalTableContainer').innerHTML = tableHTML;
     }
 
-    /***** UI Functions *****/
+    /***** Event Handlers *****/
     function setActiveTab(tabName) {
       if (tabName === 'daily') {
         document.getElementById('dailyTab').classList.add('active');
@@ -479,26 +573,6 @@
     function show15MinDetails(day, mediaType) {
       setActiveTab('interval');
       render15MinTable(day, mediaType);
-    }
-
-    function toggleTimeFormat() {
-      showTimeAsHMS = !showTimeAsHMS;
-      const activeTab = document.querySelector('.tab.active').id;
-      if (activeTab === 'dailyTabButton') {
-        renderDailyTable();
-      } else {
-        // Find which day/media type is currently being shown
-        const intervalTitle = document.querySelector('#intervalTableContainer h3').textContent;
-        const match = intervalTitle.match(/for (\d{2}\/\d{2}\/\d{4}) \((Voice|Message)\)/);
-        if (match) {
-          const date = match[1];
-          const mediaType = match[2];
-          const day = weekData.find(d => d.uk === date);
-          if (day) {
-            render15MinTable(day, mediaType);
-          }
-        }
-      }
     }
 
     /***** Event Listeners *****/
@@ -527,7 +601,16 @@
       }
     });
 
-    document.getElementById('timeFormatToggle').addEventListener('click', toggleTimeFormat);
+    document.getElementById('dailyTabButton').addEventListener('click', function() {
+      setActiveTab('daily');
+    });
+
+    document.getElementById('intervalTabButton').addEventListener('click', function() {
+      setActiveTab('interval');
+    });
+
+    // Initialize the application
+    window.addEventListener('load', init);
   </script>
 </body>
 </html>
