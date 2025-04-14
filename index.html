@@ -1,1 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Intraday Weekly Plan with OAuth</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      margin-bottom: 20px;
+    }
+    .day-data {
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    label {
+      margin-right: 10px;
+    }
+    #loginButton {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Intraday Weekly Plan</h1>
+  <!-- Login Button -->
+  <button id="loginButton">Login</button>
 
+  <!-- Week Selection Dropdown -->
+  <div class="container">
+    <label for="weekSelect">Select Week:</label>
+    <select id="weekSelect">
+      <option value="">--Select Week--</option>
+      <option value="2025-04-07">Week 1 (2025-04-07 to 2025-04-13)</option>
+      <option value="2025-04-14">Week 2 (2025-04-14 to 2025-04-20)</option>
+    </select>
+  </div>
+
+  <!-- Planning Group Filter Dropdown -->
+  <div class="container">
+    <label for="planningGroup">Planning Group:</label>
+    <select id="planningGroup">
+      <option value="">--All--</option>
+      <option value="GroupA">Group A</option>
+      <option value="GroupB">Group B</option>
+    </select>
+  </div>
+
+  <!-- Media Type Filter Dropdown -->
+  <div class="container">
+    <label for="mediaType">Media Type:</label>
+    <select id="mediaType">
+      <option value="">--All--</option>
+      <option value="Voice">Voice</option>
+      <option value="Chat">Chat</option>
+    </select>
+  </div>
+
+  <!-- Aggregated Weekly Data Display -->
+  <div id="weeklyData">
+    <p>Please select a week to display data.</p>
+  </div>
+
+  <script>
+    /***** OAuth Authentication Setup *****/
+    const CLIENT_ID = '4652c8b5-9117-43c6-8e54-77eeb38aebb8';
+    const CLIENT_SECRET = 'txtfN6cb699Lu7tID5n2NSjGwKOU_6NzyghgSk-bVkY';
+    const REGION = 'mypurecloud.ie';
+    const REDIRECT_URI = 'https://gmcglynn88.github.io/IPI-changes-on-the-fly/';
+    const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+
+    // Global variable to store the access token.
+    let accessToken = '';
+
+    /**
+     * Parses the URL hash for OAuth parameters.
+     * @returns {Object} Key/value pairs of parameters.
+     */
+    function parseHashParams() {
+      const hash = window.location.hash.substring(1);
+      const params = {};
+      hash.split("&").forEach(part => {
+        const item = part.split("=");
+        params[item[0]] = item[1];
+      });
+      return params;
+    }
+
+    // On page load, check for an access token in the URL.
+    window.addEventListener("load", function() {
+      const params = parseHashParams();
+      if (params.access_token) {
+        accessToken = params.access_token;
+        // Hide the login button once authenticated.
+        document.getElementById("loginButton").style.display = "none";
+        // Remove the token from the URL for cleaner navigation.
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    });
+
+    // Login button event: redirect user to the OAuth authorization URL.
+    document.getElementById("loginButton").addEventListener("click", function() {
+      window.location.href = AUTH_URL;
+    });
+
+    /***** Intraday Weekly Plan Functionality *****/
+    let weekData = [];
+
+    /**
+     * Computes an array of 7 dates from a provided start date.
+     * @param {string} startDate - Date in "YYYY-MM-DD" format.
+     * @returns {string[]} Array of dates (YYYY-MM-DD).
+     */
+    function getWeekDates(startDate) {
+      const dates = [];
+      const start = new Date(startDate);
+      for (let i = 0; i < 7; i++) {
+        const currentDate = new Date(start);
+        currentDate.setDate(start.getDate() + i);
+        dates.push(currentDate.toISOString().split('T')[0]);
+      }
+      return dates;
+    }
+
+    /**
+     * Calls the intraday API for a given date.
+     * Uses the OAuth access token for authentication (if available).
+     * @param {string} date - Date for which to fetch data.
+     * @returns {Promise<Object>} An object containing the date and API response.
+     */
+    async function fetchIntradayData(date) {
+      try {
+        const response = await fetch(
+          'https://api.mypurecloud.ie/api/v2/workforcemanagement/businessunits/90d49e05-8f67-42df-8825-a6f0b330d211/intraday',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Include the access token if available.
+              ...(accessToken ? { 'Authorization': 'Bearer ' + accessToken } : {})
+            },
+            body: JSON.stringify({ date: date })
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`Error fetching data for ${date}: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return { date: date, data: data };
+      } catch (error) {
+        console.error('API Error:', error);
+        return { date: date, data: null };
+      }
+    }
+
+    /**
+     * Fetches intraday data for each day in the selected week.
+     * @param {string} startDate - The starting date of the week (YYYY-MM-DD).
+     */
+    async function fetchDataForWeek(startDate) {
+      const dates = getWeekDates(startDate);
+      const fetchPromises = dates.map(date => fetchIntradayData(date));
+      weekData = await Promise.all(fetchPromises);
+      renderWeekData();
+    }
+
+    /**
+     * Renders the weekly data into the DOM, applying filter logic.
+     * Assumes that each day's data may include "planningGroup" and "mediaType" properties.
+     */
+    function renderWeekData() {
+      const planningGroupFilter = document.getElementById('planningGroup').value;
+      const mediaTypeFilter = document.getElementById('mediaType').value;
+      const container = document.getElementById('weeklyData');
+      container.innerHTML = '';
+
+      // Filter data based on the selected planning group and media type.
+      const filteredData = weekData.filter(day => {
+        // If day.data is null, include the day.
+        if (!day.data) return true;
+        const groupMatch = planningGroupFilter ? (day.data.planningGroup === planningGroupFilter) : true;
+        const mediaMatch = mediaTypeFilter ? (day.data.mediaType === mediaTypeFilter) : true;
+        return groupMatch && mediaMatch;
+      });
+
+      if (filteredData.length === 0) {
+        container.innerHTML = '<p>No data available for the selected filters.</p>';
+        return;
+      }
+
+      filteredData.forEach(day => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day-data';
+
+        const header = document.createElement('h3');
+        header.textContent = day.date;
+        dayDiv.appendChild(header);
+
+        const pre = document.createElement('pre');
+        pre.textContent = day.data ? JSON.stringify(day.data, null, 2) : 'No data available';
+        dayDiv.appendChild(pre);
+
+        const button = document.createElement('button');
+        button.textContent = 'View Intraday';
+        // Replace with detailed view logic as needed.
+        button.addEventListener('click', () => {
+          alert(`Intraday view for ${day.date}`);
+        });
+        dayDiv.appendChild(button);
+
+        container.appendChild(dayDiv);
+      });
+    }
+
+    // Event listener for week selection changes.
+    document.getElementById('weekSelect').addEventListener('change', (event) => {
+      const startDate = event.target.value;
+      if (startDate) {
+        fetchDataForWeek(startDate);
+      } else {
+        document.getElementById('weeklyData').innerHTML = '<p>Please select a week to display data.</p>';
+      }
+    });
+
+    // Event listeners for filter dropdowns.
+    document.getElementById('planningGroup').addEventListener('change', renderWeekData);
+    document.getElementById('mediaType').addEventListener('change', renderWeekData);
+  </script>
+</body>
+</html>
