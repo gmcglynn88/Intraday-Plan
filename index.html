@@ -88,8 +88,9 @@
   
   <script>
     /***** OAuth Authentication Setup *****/
+    // Note: The implicit grant flow used here does NOT use the client secret.
     const CLIENT_ID = '4652c8b5-9117-43c6-8e54-77eeb38aebb8';
-    const CLIENT_SECRET = 'txtfN6cb699Lu7tID5n2NSjGwKOU_6NzyghgSk-bVkY'; // WARNING: Do not expose this in production!
+    const CLIENT_SECRET = 'txtfN6cb699Lu7tID5n2NSjGwKOU_6NzyghgSk-bVkY'; // For testing only; not used in implicit flow.
     const REGION = 'mypurecloud.ie';
     const REDIRECT_URI = 'https://gmcglynn88.github.io/IPI-changes-on-the-fly/';
     const AUTH_URL = `https://login.${REGION}/oauth/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
@@ -115,14 +116,14 @@
       const params = parseHashParams();
       if (params.access_token) {
         accessToken = params.access_token;
-        // Clean the URL of the token
+        // Clean the URL of the token.
         window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        // Auto-authenticate by redirecting to the OAuth URL if token is not present.
+        // Auto-authenticate: redirect to the OAuth URL if token is not present.
         window.location.href = AUTH_URL;
       }
       
-      // Now that authentication is (hopefully) set, load additional data.
+      // After authentication, load business units and week options.
       fetchBusinessUnits();
       populateWeekSelect();
     });
@@ -321,7 +322,6 @@
     
     /***** Show 15-min Details *****/
     function show15MinDetails(day) {
-      // Switch to the interval tab and render detailed intervals.
       setActiveTab('interval');
       render15MinTable(day);
     }
