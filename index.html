@@ -186,8 +186,7 @@
 
   <script>
     // ===== OAuth Config =====
-    // Option 1: Use the same client ID as your Activity Code app (if it has the redirect URI)
-    const clientId = '256876c6-470d-4304-8e7d-2038f8a55d95';
+    const clientId = 'd4529142-7340-4cd8-a9f9-f3a4d25670df';
     
     // Use the EXACT URI that's registered in Genesys Cloud
     const redirectUri = 'https://gmcglynn88.github.io/Intraday-Plan/';
@@ -234,8 +233,9 @@
         setTimeout(() => {
           document.getElementById('auth-message').innerHTML += `
             <br><br><strong>Troubleshooting:</strong>
-            <br>• Check if client ID ${clientId} has redirect URI ${redirectUri} registered
-            <br>• Ensure the redirect URI matches exactly in Genesys Cloud OAuth settings
+            <br>• Verify client ID ${clientId} has redirect URI ${redirectUri} registered in Genesys Cloud
+            <br>• Check for exact match (including trailing slash)
+            <br>• Ensure OAuth client is enabled
           `;
         }, 1000);
         return;
@@ -289,7 +289,7 @@
       populateWeekSelect();
     }
 
-    // ... rest of your existing functions remain exactly the same ...
+    // ... rest of your functions remain exactly the same ...
     function onBusinessUnitChange() {
       const buId = this.value;
       const planningGroupSelect = document.getElementById('planningGroup');
