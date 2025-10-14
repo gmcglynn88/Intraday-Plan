@@ -52,6 +52,10 @@
     select { width: 100%; max-width: 400px; }
 
     pre.debug { background:#f6f8fa; border:1px solid var(--border-color); padding:12px; border-radius:8px; overflow:auto; }
+    
+    .status-complete { color: green; font-size: 11px; }
+    .status-forecast-only { color: orange; font-size: 11px; }
+    .status-warning { color: red; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -132,7 +136,6 @@
 
   <script>
     // ===== OAuth Config =====
-    // Use the new OAuth client ID you shared
     const clientId = 'fe305808-b368-4547-8af9-325d28d552bb';
 
     // Region centralised here (EU-IE)
@@ -219,35 +222,6 @@
         console.error('Error in paginated fetch:', error);
         throw error;
       }
-    }
-
-    // Data validation helper
-    function validateIntradayData(data) {
-      if (!data || !data.result) {
-        return { isValid: false, error: 'No result in response' };
-      }
-      
-      const groupings = data.result.intradayDataGroupings;
-      if (!Array.isArray(groupings)) {
-        return { isValid: false, error: 'No intradayDataGroupings array found' };
-      }
-      
-      if (groupings.length === 0) {
-        return { isValid: false, error: 'Empty intradayDataGroupings array' };
-      }
-      
-      // Check if we have any actual data
-      const hasData = groupings.some(group => 
-        group.forecastDataSummary || 
-        group.scheduleDataSummary || 
-        group.performancePredictionDataSummary
-      );
-      
-      if (!hasData) {
-        return { isValid: false, error: 'No summary data found in groupings' };
-      }
-      
-      return { isValid: true, groupings };
     }
 
     // ===== Auth bootstrap =====
@@ -553,31 +527,46 @@
       }
       
       try {
+        console.log(`🔍 Fetching intraday data for ${date}...`);
+        
+        // Prepare the request body exactly as specified
+        const requestBody = {
+          businessUnitDate: date, // Format: yyyy-MM-dd
+          categories: ["ForecastData", "ScheduleData", "PerformancePredictionData"],
+          intervalLengthMinutes: 15
+        };
+        
+        // Only add planningGroupIds if one is selected
+        if (planningGroupId) {
+          requestBody.planningGroupIds = [planningGroupId];
+        }
+        
+        console.log('📤 API Request Body:', JSON.stringify(requestBody, null, 2));
+        
         const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + state.accessToken
           },
-          body: JSON.stringify({
-            businessUnitDate: date,
-            categories: ["ForecastData", "PerformancePredictionData", "ScheduleData"],
-            intervalLengthMinutes: 15,
-            planningGroupIds: planningGroupId ? [planningGroupId] : null
-          })
+          body: JSON.stringify(requestBody)
         });
+        
+        console.log(`📥 API Response Status: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
           if (response.status === 404) {
             return { date: date, data: null, error: 'No data available for this date' };
           }
           
-          // Try to get more error details
           const errorText = await response.text();
           let errorDetails = `HTTP error! status: ${response.status}`;
           try {
             const errorJson = JSON.parse(errorText);
             errorDetails += ` - ${errorJson.message || errorText}`;
+            if (errorJson.code) {
+              errorDetails += ` (Code: ${errorJson.code})`;
+            }
           } catch {
             errorDetails += ` - ${errorText}`;
           }
@@ -586,28 +575,67 @@
         
         const data = await response.json();
         
-        // ADD COMPREHENSIVE DEBUG LOGGING
-        if (DEBUG) {
-          console.log(`=== INTRADAY DATA FOR ${date} ===`, data);
-          if (data.result?.intradayDataGroupings) {
-            console.log('Data groupings found:', data.result.intradayDataGroupings.length);
-            data.result.intradayDataGroupings.forEach((group, index) => {
-              console.log(`Group ${index + 1}:`, {
-                mediaType: group.mediaType,
-                forecastSummary: group.forecastDataSummary,
-                scheduleSummary: group.scheduleDataSummary,
-                performanceSummary: group.performancePredictionDataSummary,
-                forecastIntervals: group.forecastDataPerInterval?.length || 0,
-                scheduleIntervals: group.scheduleDataPerInterval?.length || 0,
-                performanceIntervals: group.performancePredictionDataPerInterval?.length || 0
+        // COMPREHENSIVE DEBUG LOGGING
+        console.log(`📊 FULL API RESPONSE for ${date}:`, data);
+        
+        if (data) {
+          console.log(`✅ API call successful for ${date}`);
+          
+          if (data.result) {
+            console.log(`📋 Result structure:`, Object.keys(data.result));
+            
+            if (data.result.intradayDataGroupings && Array.isArray(data.result.intradayDataGroupings)) {
+              console.log(`🔢 Found ${data.result.intradayDataGroupings.length} data grouping(s)`);
+              
+              data.result.intradayDataGroupings.forEach((group, index) => {
+                console.log(`\n🎯 Group ${index + 1}:`, {
+                  mediaType: group.mediaType,
+                  // Check all available data
+                  forecastDataSummary: group.forecastDataSummary,
+                  scheduleDataSummary: group.scheduleDataSummary,
+                  performancePredictionDataSummary: group.performancePredictionDataSummary,
+                  // Check if interval arrays exist
+                  hasForecastIntervals: Array.isArray(group.forecastDataPerInterval),
+                  hasScheduleIntervals: Array.isArray(group.scheduleDataPerInterval),
+                  hasPerformanceIntervals: Array.isArray(group.performancePredictionDataPerInterval)
+                });
+                
+                // Detailed analysis of what's actually in the data
+                if (group.forecastDataSummary) {
+                  console.log(`   📈 Forecast Summary:`, group.forecastDataSummary);
+                } else {
+                  console.log(`   ❌ No Forecast Data Summary`);
+                }
+                
+                if (group.scheduleDataSummary) {
+                  console.log(`   📅 Schedule Summary:`, group.scheduleDataSummary);
+                } else {
+                  console.log(`   ⚠️ No Schedule Data Summary - Check if schedules are published`);
+                }
+                
+                if (group.performancePredictionDataSummary) {
+                  console.log(`   🎯 Performance Prediction Summary:`, group.performancePredictionDataSummary);
+                } else {
+                  console.log(`   ⚠️ No Performance Prediction Data Summary - Predictions may not be generated`);
+                }
               });
-            });
+            } else {
+              console.log(`❌ No intradayDataGroupings array in result`);
+              if (data.result) {
+                console.log(`🔍 Result keys:`, Object.keys(data.result));
+              }
+            }
+          } else {
+            console.log(`❌ No result object in response`);
+            console.log(`🔍 Response keys:`, Object.keys(data));
           }
+        } else {
+          console.log(`❌ Empty response from API`);
         }
         
         return { date: date, data: data };
       } catch (error) {
-        console.error('Error fetching intraday data:', error);
+        console.error('❌ Error fetching intraday data:', error);
         return { date: date, data: null, error: error.message };
       }
     }
@@ -673,6 +701,7 @@
                 <th>Service Level</th>
                 <th>ASA</th>
                 <th>Occupancy</th>
+                <th>Data Status</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -682,24 +711,48 @@
       const weeklyTotals = { offered: 0, aht: 0, scheduledTime: 0, serviceLevel: 0, asa: 0, occupancy: 0, count: 0 };
 
       state.weekData.forEach(day => {
-        // Use the validation helper
-        const validation = validateIntradayData(day.data);
-        
-        if (!validation.isValid) {
+        // Enhanced validation that checks the actual API response structure
+        if (!day.data) {
           const dayOfWeek = getDayOfWeek(day.uk);
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="9" class="no-data">${day.error || validation.error}</td>
+              <td colspan="11" class="no-data">${day.error || 'No data received from API'}</td>
             </tr>
           `;
           return;
         }
 
-        // Now process the validated groupings
-        validation.groupings.forEach(group => {
-          // VALIDATE GROUP STRUCTURE
+        // Check if we have the expected result structure
+        if (!day.data.result) {
+          const dayOfWeek = getDayOfWeek(day.uk);
+          tableHTML += `
+            <tr>
+              <td>${day.uk}</td>
+              <td>${dayOfWeek}</td>
+              <td colspan="11" class="no-data">Invalid API response structure - no result field</td>
+            </tr>
+          `;
+          return;
+        }
+
+        const groupings = day.data.result.intradayDataGroupings;
+        
+        if (!Array.isArray(groupings) || groupings.length === 0) {
+          const dayOfWeek = getDayOfWeek(day.uk);
+          tableHTML += `
+            <tr>
+              <td>${day.uk}</td>
+              <td>${dayOfWeek}</td>
+              <td colspan="11" class="no-data">No data groupings available</td>
+            </tr>
+          `;
+          return;
+        }
+
+        // Process each grouping
+        groupings.forEach(group => {
           if (!group || !group.mediaType) {
             console.warn('Invalid group structure:', group);
             return;
@@ -707,26 +760,49 @@
           
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
-          // SAFELY ACCESS NESTED PROPERTIES
-          const offered = group.forecastDataSummary?.offered || 0;
-          const aht = group.forecastDataSummary?.averageHandleTimeSeconds || 0;
-          const scheduledTime = group.scheduleDataSummary?.onQueueTimeSeconds || 0;
-          const serviceLevel = group.performancePredictionDataSummary?.serviceLevelPercent || 0;
-          const asa = group.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || 0;
-          const occupancy = group.performancePredictionDataSummary?.occupancyPercent || 0;
+          // Extract data with careful null checking
+          const forecastSummary = group.forecastDataSummary || {};
+          const scheduleSummary = group.scheduleDataSummary || {};
+          const performanceSummary = group.performancePredictionDataSummary || {};
 
-          // DEBUG: Log actual values vs displayed values
-          if (DEBUG) {
-            console.log(`Day: ${day.uk}, Media: ${group.mediaType}`, {
-              offered,
-              aht,
-              scheduledTime,
-              serviceLevel,
-              asa,
-              occupancy
-            });
+          const offered = forecastSummary.offered || 0;
+          const aht = forecastSummary.averageHandleTimeSeconds || 0;
+          const scheduledTime = scheduleSummary.onQueueTimeSeconds || 0;
+          const serviceLevel = performanceSummary.serviceLevelPercent || 0;
+          const asa = performanceSummary.averageSpeedOfAnswerSeconds || 0;
+          const occupancy = performanceSummary.occupancyPercent || 0;
+
+          // Determine data completeness
+          let dataStatus = 'Complete';
+          let statusClass = 'status-complete';
+          if (!group.scheduleDataSummary) {
+            dataStatus = 'No Schedule';
+            statusClass = 'status-warning';
+          }
+          if (!group.performancePredictionDataSummary) {
+            dataStatus = 'No Predictions';
+            statusClass = 'status-warning';
+          }
+          if (!group.forecastDataSummary) {
+            dataStatus = 'No Forecast';
+            statusClass = 'status-warning';
+          }
+          if (!group.scheduleDataSummary && !group.performancePredictionDataSummary) {
+            dataStatus = 'Forecast Only';
+            statusClass = 'status-forecast-only';
           }
 
+          console.log(`📊 Processing ${day.uk} - ${group.mediaType}:`, {
+            offered,
+            aht,
+            scheduledTime,
+            serviceLevel,
+            asa,
+            occupancy,
+            status: dataStatus
+          });
+
+          // Add to totals
           weeklyTotals.offered += offered;
           weeklyTotals.aht += aht;
           weeklyTotals.scheduledTime += scheduledTime;
@@ -748,6 +824,7 @@
               <td>${formatNumber(serviceLevel)}%</td>
               <td>${formatTime(asa)}</td>
               <td>${formatNumber(occupancy)}%</td>
+              <td class="${statusClass}">${dataStatus}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
                   View Details
