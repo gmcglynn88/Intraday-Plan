@@ -56,6 +56,8 @@
     .status-complete { color: green; font-size: 11px; }
     .status-forecast-only { color: orange; font-size: 11px; }
     .status-warning { color: red; font-size: 11px; }
+    
+    .load-btn-container { grid-column: 1 / -1; text-align: center; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -109,6 +111,11 @@
             <option value="Message">Message</option>
           </select>
         </div>
+        <div class="load-btn-container">
+          <button id="loadDataBtn" class="full-width-btn" disabled>
+            Load Data
+          </button>
+        </div>
       </div>
     </div>
 
@@ -123,7 +130,7 @@
       
       <div id="dailyTab" class="tab-content active">
         <h2 class="section-title">Daily Data</h2>
-        <div id="weeklySummary" class="loading">Select a week to view data</div>
+        <div id="weeklySummary" class="loading">Select a week and click "Load Data" to view data</div>
         <div id="dailyTableContainer"></div>
       </div>
       
@@ -330,7 +337,8 @@
       document.getElementById('businessUnitSelect').addEventListener('change', onBusinessUnitChange);
       document.getElementById('planningGroup').addEventListener('change', onPlanningGroupChange);
       document.getElementById('weekSelect').addEventListener('change', onWeekSelectChange);
-      document.getElementById('mediaType').addEventListener('change', renderDailyTable);
+      document.getElementById('mediaType').addEventListener('change', onConfigChange);
+      document.getElementById('loadDataBtn').addEventListener('click', loadData);
       document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
       document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
 
@@ -344,24 +352,54 @@
       const planningGroupSelect = document.getElementById('planningGroup');
       planningGroupSelect.innerHTML = '<option value="">-- Loading Planning Groups --</option>';
       planningGroupSelect.disabled = true;
+      document.getElementById('loadDataBtn').disabled = true;
+      
       if (buId) {
         fetchPlanningGroups(buId);
       } else {
         planningGroupSelect.innerHTML = '<option value="">-- Select Business Unit First --</option>';
         planningGroupSelect.disabled = true;
+        document.getElementById('loadDataBtn').disabled = true;
       }
     }
 
     function onPlanningGroupChange() {
       state.planningGroupName = this.options[this.selectedIndex].text;
       document.getElementById('weekSelect').disabled = !this.value;
+      updateLoadButtonState();
     }
 
     function onWeekSelectChange() {
-      if (this.value) {
+      updateLoadButtonState();
+    }
+
+    function onConfigChange() {
+      // If we already have data, re-render with new filters
+      if (state.weekData.length > 0) {
+        renderAllData();
+      }
+    }
+
+    function updateLoadButtonState() {
+      const businessUnitId = document.getElementById('businessUnitSelect').value;
+      const planningGroupId = document.getElementById('planningGroup').value;
+      const weekSelected = document.getElementById('weekSelect').value;
+      
+      document.getElementById('loadDataBtn').disabled = !(businessUnitId && planningGroupId && weekSelected);
+    }
+
+    function loadData() {
+      const weekStart = document.getElementById('weekSelect').value;
+      if (weekStart) {
         document.getElementById('weeklySummary').className = 'loading';
         document.getElementById('weeklySummary').textContent = 'Loading data...';
-        fetchDataForWeek(this.value);
+        document.getElementById('loadDataBtn').disabled = true;
+        document.getElementById('loadDataBtn').textContent = 'Loading...';
+        
+        fetchDataForWeek(weekStart).finally(() => {
+          document.getElementById('loadDataBtn').disabled = false;
+          document.getElementById('loadDataBtn').textContent = 'Load Data';
+        });
       }
     }
 
@@ -440,11 +478,14 @@
     function populateWeekSelect() {
       const select = document.getElementById('weekSelect');
       select.innerHTML = '<option value="">-- Select Week --</option>';
+      
       const today = new Date();
       const dayOfWeek = today.getDay();
       const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
       const monday = new Date(today.setDate(diff));
-      for (let w = 0; w < 52; w++) {
+      
+      // Generate 52 weeks into the future AND 52 weeks into the past
+      for (let w = -52; w < 52; w++) {
         const weekStart = new Date(monday);
         weekStart.setDate(monday.getDate() + (w * 7));
         const weekEnd = new Date(weekStart);
@@ -452,9 +493,21 @@
         const weekStartStr = getUKFormattedDate(weekStart);
         const weekEndStr = getUKFormattedDate(weekEnd);
         const isoWeekStart = weekStart.toISOString().split('T')[0];
+        
         const option = document.createElement('option');
         option.value = isoWeekStart;
-        option.textContent = `Week ${weekStartStr} - ${weekEndStr}`;
+        
+        // Add indicator for past/current/future weeks
+        let weekLabel = `Week ${weekStartStr} - ${weekEndStr}`;
+        if (w < 0) {
+          weekLabel += ' (Past)';
+        } else if (w === 0) {
+          weekLabel += ' (Current)';
+        } else {
+          weekLabel += ' (Future)';
+        }
+        
+        option.textContent = weekLabel;
         if (w === 0) option.selected = true;
         select.appendChild(option);
       }
@@ -507,6 +560,7 @@
         });
         
         select.disabled = false;
+        updateLoadButtonState();
         
         if (DEBUG) {
           console.log('Loaded planning groups:', planningGroups.length);
@@ -576,61 +630,20 @@
         const data = await response.json();
         
         // COMPREHENSIVE DEBUG LOGGING
-        console.log(`📊 FULL API RESPONSE for ${date}:`, data);
-        
-        if (data) {
-          console.log(`✅ API call successful for ${date}`);
+        if (DEBUG) {
+          console.log(`📊 FULL API RESPONSE for ${date}:`, data);
           
-          if (data.result) {
-            console.log(`📋 Result structure:`, Object.keys(data.result));
+          if (data.result?.intradayDataGroupings) {
+            console.log(`🔢 Found ${data.result.intradayDataGroupings.length} data grouping(s)`);
             
-            if (data.result.intradayDataGroupings && Array.isArray(data.result.intradayDataGroupings)) {
-              console.log(`🔢 Found ${data.result.intradayDataGroupings.length} data grouping(s)`);
-              
-              data.result.intradayDataGroupings.forEach((group, index) => {
-                console.log(`\n🎯 Group ${index + 1}:`, {
-                  mediaType: group.mediaType,
-                  // Check all available data
-                  forecastDataSummary: group.forecastDataSummary,
-                  scheduleDataSummary: group.scheduleDataSummary,
-                  performancePredictionDataSummary: group.performancePredictionDataSummary,
-                  // Check if interval arrays exist
-                  hasForecastIntervals: Array.isArray(group.forecastDataPerInterval),
-                  hasScheduleIntervals: Array.isArray(group.scheduleDataPerInterval),
-                  hasPerformanceIntervals: Array.isArray(group.performancePredictionDataPerInterval)
-                });
-                
-                // Detailed analysis of what's actually in the data
-                if (group.forecastDataSummary) {
-                  console.log(`   📈 Forecast Summary:`, group.forecastDataSummary);
-                } else {
-                  console.log(`   ❌ No Forecast Data Summary`);
-                }
-                
-                if (group.scheduleDataSummary) {
-                  console.log(`   📅 Schedule Summary:`, group.scheduleDataSummary);
-                } else {
-                  console.log(`   ⚠️ No Schedule Data Summary - Check if schedules are published`);
-                }
-                
-                if (group.performancePredictionDataSummary) {
-                  console.log(`   🎯 Performance Prediction Summary:`, group.performancePredictionDataSummary);
-                } else {
-                  console.log(`   ⚠️ No Performance Prediction Data Summary - Predictions may not be generated`);
-                }
+            data.result.intradayDataGroupings.forEach((group, index) => {
+              console.log(`\n🎯 Group ${index + 1} (${group.mediaType}):`, {
+                forecastSummary: group.forecastDataSummary,
+                scheduleSummary: group.scheduleDataSummary,
+                performanceSummary: group.performancePredictionDataSummary
               });
-            } else {
-              console.log(`❌ No intradayDataGroupings array in result`);
-              if (data.result) {
-                console.log(`🔍 Result keys:`, Object.keys(data.result));
-              }
-            }
-          } else {
-            console.log(`❌ No result object in response`);
-            console.log(`🔍 Response keys:`, Object.keys(data));
+            });
           }
-        } else {
-          console.log(`❌ Empty response from API`);
         }
         
         return { date: date, data: data };
@@ -642,11 +655,15 @@
 
     async function fetchDataForWeek(startDate) {
       const dateObjs = getWeekDates(startDate);
+      showMessage(`Loading data for week starting ${dateObjs[0].uk}...`, 'info');
+      
       const fetchPromises = dateObjs.map(dateObj => 
         fetchIntradayData(dateObj.raw).then(result => ({ ...result, uk: dateObj.uk }))
       );
+      
       state.weekData = await Promise.all(fetchPromises);
       renderAllData();
+      showMessage('Data loaded successfully!', 'success');
     }
 
     // Debug inspection function
@@ -760,11 +777,21 @@
           
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
-          // Extract data with careful null checking
+          // DEBUG: Show the actual data we're working with
+          if (DEBUG) {
+            console.log(`📊 RAW DATA for ${day.uk} - ${group.mediaType}:`, {
+              forecastSummary: group.forecastDataSummary,
+              scheduleSummary: group.scheduleDataSummary,
+              performanceSummary: group.performancePredictionDataSummary
+            });
+          }
+
+          // Extract data - use the actual values from the summaries
           const forecastSummary = group.forecastDataSummary || {};
           const scheduleSummary = group.scheduleDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
 
+          // Use the summary values directly (they contain the totals)
           const offered = forecastSummary.offered || 0;
           const aht = forecastSummary.averageHandleTimeSeconds || 0;
           const scheduledTime = scheduleSummary.onQueueTimeSeconds || 0;
@@ -772,35 +799,36 @@
           const asa = performanceSummary.averageSpeedOfAnswerSeconds || 0;
           const occupancy = performanceSummary.occupancyPercent || 0;
 
+          if (DEBUG) {
+            console.log(`🎯 EXTRACTED for ${day.uk} - ${group.mediaType}:`, {
+              offered,
+              aht,
+              scheduledTime,
+              serviceLevel,
+              asa,
+              occupancy
+            });
+          }
+
           // Determine data completeness
           let dataStatus = 'Complete';
           let statusClass = 'status-complete';
+          
           if (!group.scheduleDataSummary) {
             dataStatus = 'No Schedule';
             statusClass = 'status-warning';
+          } else if (scheduledTime === 0) {
+            dataStatus = 'No Agents Scheduled';
+            statusClass = 'status-warning';
           }
+          
           if (!group.performancePredictionDataSummary) {
             dataStatus = 'No Predictions';
             statusClass = 'status-warning';
-          }
-          if (!group.forecastDataSummary) {
-            dataStatus = 'No Forecast';
+          } else if (serviceLevel === 0 && asa === 0 && occupancy === 0) {
+            dataStatus = 'Zero Predictions';
             statusClass = 'status-warning';
           }
-          if (!group.scheduleDataSummary && !group.performancePredictionDataSummary) {
-            dataStatus = 'Forecast Only';
-            statusClass = 'status-forecast-only';
-          }
-
-          console.log(`📊 Processing ${day.uk} - ${group.mediaType}:`, {
-            offered,
-            aht,
-            scheduledTime,
-            serviceLevel,
-            asa,
-            occupancy,
-            status: dataStatus
-          });
 
           // Add to totals
           weeklyTotals.offered += offered;
@@ -901,27 +929,35 @@
           tableHTML += '<tr><td colspan="7" class="no-data">No data for selected media type</td></tr>';
         } else {
           const startDate = new Date(day.data.result.startDate);
-          let hasDataStarted = false;
+          
+          // Debug the interval data
+          if (DEBUG) {
+            console.log(`⏱️ Interval data for ${day.uk} - ${mediaType}:`, {
+              forecastIntervals: grouping.forecastDataPerInterval?.length || 0,
+              scheduleIntervals: grouping.scheduleDataPerInterval?.length || 0,
+              performanceIntervals: grouping.performancePredictionDataPerInterval?.length || 0
+            });
+          }
+          
           for (let i = 0; i < 96; i++) {
             const intervalTime = new Date(startDate);
             intervalTime.setMinutes(intervalTime.getMinutes() + i * 15);
             const timeStr = intervalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const hasData =
-              (grouping.forecastDataPerInterval?.[i]) ||
-              (grouping.scheduleDataPerInterval?.[i]) ||
-              (grouping.performancePredictionDataPerInterval?.[i]);
-
-            if (!hasDataStarted && !hasData) continue;
-            hasDataStarted = true;
-
+            
+            // Get interval data - handle null values
             const forecast = grouping.forecastDataPerInterval?.[i] || {};
             const schedule = grouping.scheduleDataPerInterval?.[i] || {};
             const performance = grouping.performancePredictionDataPerInterval?.[i] || {};
 
+            // Skip intervals with no data at all
+            if (!forecast.offered && !schedule.onQueueTimeSeconds && !performance.serviceLevelPercent) {
+              continue;
+            }
+
             tableHTML += `
               <tr>
                 <td>${timeStr}</td>
-                <td>${Math.round(forecast.offered || 0)}</td>
+                <td>${forecast.offered ? Math.round(forecast.offered * 100) / 100 : 0}</td>
                 <td>${formatTime(forecast.averageHandleTimeSeconds || 0)}</td>
                 <td>${formatHours(schedule.onQueueTimeSeconds || 0)}</td>
                 <td>${performance.serviceLevelPercent ? formatNumber(performance.serviceLevelPercent) + '%' : '0%'}</td>
@@ -929,6 +965,11 @@
                 <td>${performance.occupancyPercent ? formatNumber(performance.occupancyPercent) + '%' : '0%'}</td>
               </tr>
             `;
+          }
+          
+          // If no data rows were added
+          if (!tableHTML.includes('<tr>')) {
+            tableHTML += '<tr><td colspan="7" class="no-data">No interval data available for this day</td></tr>';
           }
         }
       } else {
