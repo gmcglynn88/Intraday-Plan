@@ -58,6 +58,35 @@
     .status-warning { color: red; font-size: 11px; }
     
     .load-btn-container { grid-column: 1 / -1; text-align: center; margin-top: 10px; }
+    
+    /* Calendar Styles */
+    .calendar-container { position: relative; }
+    .calendar-input { cursor: pointer; }
+    .calendar-popup { 
+      position: absolute; 
+      top: 100%; 
+      left: 0; 
+      background: white; 
+      border: 1px solid var(--border-color); 
+      border-radius: 6px; 
+      padding: 15px; 
+      z-index: 1000; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      min-width: 300px;
+      display: none;
+    }
+    .calendar-popup.active { display: block; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+    .calendar-day { padding: 8px; text-align: center; cursor: pointer; border-radius: 4px; }
+    .calendar-day:hover { background: var(--light-bg); }
+    .calendar-day.selected { background: var(--primary-color); color: white; }
+    .calendar-day.other-month { color: var(--text-light); }
+    .calendar-day.week-start { border: 2px solid var(--primary-color); }
+    
+    /* Metric Tables */
+    .metrics-section { margin-bottom: 30px; }
+    .metrics-section h3 { color: var(--secondary-color); margin-bottom: 15px; border-bottom: 2px solid var(--primary-color); padding-bottom: 5px; }
   </style>
 </head>
 <body>
@@ -97,11 +126,19 @@
             <option value="">-- Select Business Unit First --</option>
           </select>
         </div>
-        <div>
+        <div class="calendar-container">
           <label for="weekSelect">Select Week:</label>
-          <select id="weekSelect" disabled>
-            <option value="">-- Loading Weeks --</option>
-          </select>
+          <input type="text" id="weekSelect" class="calendar-input" placeholder="Click to select week" readonly>
+          <div id="calendarPopup" class="calendar-popup">
+            <div class="calendar-header">
+              <button id="prevMonth">&lt;</button>
+              <h4 id="currentMonth">Month Year</h4>
+              <button id="nextMonth">&gt;</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+              <!-- Calendar days will be populated here -->
+            </div>
+          </div>
         </div>
         <div>
           <label for="mediaType">Media Type:</label>
@@ -131,7 +168,18 @@
       <div id="dailyTab" class="tab-content active">
         <h2 class="section-title">Daily Data</h2>
         <div id="weeklySummary" class="loading">Select a week and click "Load Data" to view data</div>
-        <div id="dailyTableContainer"></div>
+        
+        <!-- Actual Performance Data -->
+        <div class="metrics-section" id="actualSection" style="display: none;">
+          <h3>📊 Actual Performance Data</h3>
+          <div id="actualTableContainer"></div>
+        </div>
+        
+        <!-- Forecast Data -->
+        <div class="metrics-section" id="forecastSection" style="display: none;">
+          <h3>🔮 Forecast & Prediction Data</h3>
+          <div id="forecastTableContainer"></div>
+        </div>
       </div>
       
       <div id="intervalTab" class="tab-content">
@@ -170,8 +218,132 @@
     const state = {
       accessToken: null,
       planningGroupName: '',
-      weekData: []
+      weekData: [],
+      selectedWeekStart: null,
+      calendarDate: new Date()
     };
+
+    // ===== Calendar Functions =====
+    function initCalendar() {
+      const calendarInput = document.getElementById('weekSelect');
+      const calendarPopup = document.getElementById('calendarPopup');
+      const prevMonthBtn = document.getElementById('prevMonth');
+      const nextMonthBtn = document.getElementById('nextMonth');
+      
+      calendarInput.addEventListener('click', () => {
+        calendarPopup.classList.toggle('active');
+        renderCalendar();
+      });
+      
+      prevMonthBtn.addEventListener('click', () => {
+        state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
+        renderCalendar();
+      });
+      
+      nextMonthBtn.addEventListener('click', () => {
+        state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
+        renderCalendar();
+      });
+      
+      // Close calendar when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!calendarInput.contains(e.target) && !calendarPopup.contains(e.target)) {
+          calendarPopup.classList.remove('active');
+        }
+      });
+    }
+    
+    function renderCalendar() {
+      const currentMonthEl = document.getElementById('currentMonth');
+      const calendarGrid = document.getElementById('calendarGrid');
+      
+      const year = state.calendarDate.getFullYear();
+      const month = state.calendarDate.getMonth();
+      
+      currentMonthEl.textContent = state.calendarDate.toLocaleDateString('en-GB', { 
+        month: 'long', 
+        year: 'numeric' 
+      });
+      
+      // Get first day of month and last day of month
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Get the Monday of the week containing the first day
+      const startDate = new Date(firstDay);
+      startDate.setDate(firstDay.getDate() - firstDay.getDay() + (firstDay.getDay() === 0 ? -6 : 1));
+      
+      // Get the Sunday of the week containing the last day
+      const endDate = new Date(lastDay);
+      endDate.setDate(lastDay.getDate() + (7 - lastDay.getDay()) % 7);
+      
+      calendarGrid.innerHTML = '';
+      
+      // Add day headers
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      days.forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.textContent = day;
+        dayHeader.style.fontWeight = 'bold';
+        dayHeader.style.textAlign = 'center';
+        calendarGrid.appendChild(dayHeader);
+      });
+      
+      // Add calendar days
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dayEl = document.createElement('div');
+        dayEl.className = 'calendar-day';
+        dayEl.textContent = currentDate.getDate();
+        
+        if (currentDate.getMonth() !== month) {
+          dayEl.classList.add('other-month');
+        }
+        
+        // Check if this day is the start of a selected week
+        if (state.selectedWeekStart) {
+          const weekStart = new Date(state.selectedWeekStart);
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 6);
+          
+          if (currentDate >= weekStart && currentDate <= weekEnd) {
+            dayEl.style.backgroundColor = 'rgba(99, 171, 143, 0.2)';
+          }
+          
+          if (currentDate.getTime() === weekStart.getTime()) {
+            dayEl.classList.add('week-start');
+          }
+        }
+        
+        dayEl.addEventListener('click', () => {
+          selectWeek(currentDate);
+        });
+        
+        calendarGrid.appendChild(dayEl);
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+    
+    function selectWeek(date) {
+      // Find the Monday of the selected week
+      const selectedDate = new Date(date);
+      const dayOfWeek = selectedDate.getDay();
+      const diff = selectedDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const monday = new Date(selectedDate.setDate(diff));
+      
+      state.selectedWeekStart = monday.toISOString().split('T')[0];
+      
+      const weekEnd = new Date(monday);
+      weekEnd.setDate(monday.getDate() + 6);
+      
+      const weekStartStr = getUKFormattedDate(monday);
+      const weekEndStr = getUKFormattedDate(weekEnd);
+      
+      document.getElementById('weekSelect').value = `Week ${weekStartStr} - ${weekEndStr}`;
+      document.getElementById('calendarPopup').classList.remove('active');
+      
+      updateLoadButtonState();
+    }
 
     // ===== Utility Functions =====
     
@@ -336,15 +508,23 @@
       // Set up event listeners
       document.getElementById('businessUnitSelect').addEventListener('change', onBusinessUnitChange);
       document.getElementById('planningGroup').addEventListener('change', onPlanningGroupChange);
-      document.getElementById('weekSelect').addEventListener('change', onWeekSelectChange);
       document.getElementById('mediaType').addEventListener('change', onConfigChange);
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
       document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
       document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
 
+      // Initialize calendar
+      initCalendar();
+      
       // Load initial data
       fetchBusinessUnits();
-      populateWeekSelect();
+      
+      // Set default week to current week
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
+      selectWeek(monday);
     }
 
     function onBusinessUnitChange() {
@@ -365,11 +545,6 @@
 
     function onPlanningGroupChange() {
       state.planningGroupName = this.options[this.selectedIndex].text;
-      document.getElementById('weekSelect').disabled = !this.value;
-      updateLoadButtonState();
-    }
-
-    function onWeekSelectChange() {
       updateLoadButtonState();
     }
 
@@ -383,18 +558,22 @@
     function updateLoadButtonState() {
       const businessUnitId = document.getElementById('businessUnitSelect').value;
       const planningGroupId = document.getElementById('planningGroup').value;
-      const weekSelected = document.getElementById('weekSelect').value;
+      const weekSelected = state.selectedWeekStart;
       
       document.getElementById('loadDataBtn').disabled = !(businessUnitId && planningGroupId && weekSelected);
     }
 
     function loadData() {
-      const weekStart = document.getElementById('weekSelect').value;
+      const weekStart = state.selectedWeekStart;
       if (weekStart) {
         document.getElementById('weeklySummary').className = 'loading';
         document.getElementById('weeklySummary').textContent = 'Loading data...';
         document.getElementById('loadDataBtn').disabled = true;
         document.getElementById('loadDataBtn').textContent = 'Loading...';
+        
+        // Hide previous tables
+        document.getElementById('actualSection').style.display = 'none';
+        document.getElementById('forecastSection').style.display = 'none';
         
         fetchDataForWeek(weekStart).finally(() => {
           document.getElementById('loadDataBtn').disabled = false;
@@ -473,45 +652,6 @@
         dates.push({ raw, uk });
       }
       return dates;
-    }
-
-    function populateWeekSelect() {
-      const select = document.getElementById('weekSelect');
-      select.innerHTML = '<option value="">-- Select Week --</option>';
-      
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
-      const monday = new Date(today.setDate(diff));
-      
-      // Generate 52 weeks into the future AND 52 weeks into the past
-      for (let w = -52; w < 52; w++) {
-        const weekStart = new Date(monday);
-        weekStart.setDate(monday.getDate() + (w * 7));
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        const weekStartStr = getUKFormattedDate(weekStart);
-        const weekEndStr = getUKFormattedDate(weekEnd);
-        const isoWeekStart = weekStart.toISOString().split('T')[0];
-        
-        const option = document.createElement('option');
-        option.value = isoWeekStart;
-        
-        // Add indicator for past/current/future weeks
-        let weekLabel = `Week ${weekStartStr} - ${weekEndStr}`;
-        if (w < 0) {
-          weekLabel += ' (Past)';
-        } else if (w === 0) {
-          weekLabel += ' (Current)';
-        } else {
-          weekLabel += ' (Future)';
-        }
-        
-        option.textContent = weekLabel;
-        if (w === 0) option.selected = true;
-        select.appendChild(option);
-      }
-      select.disabled = false;
     }
 
     // Data fetching functions
@@ -682,7 +822,7 @@
 
     // Rendering functions
     function renderAllData() {
-      renderDailyTable();
+      renderDailyTables();
       
       // Add debug inspection
       if (DEBUG) {
@@ -701,8 +841,24 @@
       }
     }
 
-    function renderDailyTable() {
+    function renderDailyTables() {
       const mediaTypeFilter = document.getElementById('mediaType').value;
+      
+      // Show both sections
+      document.getElementById('actualSection').style.display = 'block';
+      document.getElementById('forecastSection').style.display = 'block';
+      
+      // Render Actual Performance Table
+      renderActualTable(mediaTypeFilter);
+      
+      // Render Forecast Table
+      renderForecastTable(mediaTypeFilter);
+      
+      // Update weekly summary
+      updateWeeklySummary(mediaTypeFilter);
+    }
+
+    function renderActualTable(mediaTypeFilter) {
       let tableHTML = `
         <div class="table-container">
           <table>
@@ -710,10 +866,7 @@
               <tr>
                 <th>Date</th>
                 <th>Day</th>
-                <th>Planning Group</th>
                 <th>Media Type</th>
-                <th>Forecast Offered</th>
-                <th>Forecast AHT</th>
                 <th>Scheduled Time</th>
                 <th>Service Level</th>
                 <th>ASA</th>
@@ -725,30 +878,14 @@
             <tbody>
       `;
 
-      const weeklyTotals = { offered: 0, aht: 0, scheduledTime: 0, serviceLevel: 0, asa: 0, occupancy: 0, count: 0 };
-
       state.weekData.forEach(day => {
-        // Enhanced validation that checks the actual API response structure
-        if (!day.data) {
+        if (!day.data || !day.data.result) {
           const dayOfWeek = getDayOfWeek(day.uk);
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="11" class="no-data">${day.error || 'No data received from API'}</td>
-            </tr>
-          `;
-          return;
-        }
-
-        // Check if we have the expected result structure
-        if (!day.data.result) {
-          const dayOfWeek = getDayOfWeek(day.uk);
-          tableHTML += `
-            <tr>
-              <td>${day.uk}</td>
-              <td>${dayOfWeek}</td>
-              <td colspan="11" class="no-data">Invalid API response structure - no result field</td>
+              <td colspan="7" class="no-data">${day.error || 'No data available'}</td>
             </tr>
           `;
           return;
@@ -762,55 +899,24 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="11" class="no-data">No data groupings available</td>
+              <td colspan="7" class="no-data">No data groupings available</td>
             </tr>
           `;
           return;
         }
 
-        // Process each grouping
         groupings.forEach(group => {
-          if (!group || !group.mediaType) {
-            console.warn('Invalid group structure:', group);
-            return;
-          }
-          
+          if (!group || !group.mediaType) return;
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
-          // DEBUG: Show the actual data we're working with
-          if (DEBUG) {
-            console.log(`📊 RAW DATA for ${day.uk} - ${group.mediaType}:`, {
-              forecastSummary: group.forecastDataSummary,
-              scheduleSummary: group.scheduleDataSummary,
-              performanceSummary: group.performancePredictionDataSummary
-            });
-          }
-
-          // Extract data - use the actual values from the summaries
-          const forecastSummary = group.forecastDataSummary || {};
           const scheduleSummary = group.scheduleDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
 
-          // Use the summary values directly (they contain the totals)
-          const offered = forecastSummary.offered || 0;
-          const aht = forecastSummary.averageHandleTimeSeconds || 0;
           const scheduledTime = scheduleSummary.onQueueTimeSeconds || 0;
           const serviceLevel = performanceSummary.serviceLevelPercent || 0;
           const asa = performanceSummary.averageSpeedOfAnswerSeconds || 0;
           const occupancy = performanceSummary.occupancyPercent || 0;
 
-          if (DEBUG) {
-            console.log(`🎯 EXTRACTED for ${day.uk} - ${group.mediaType}:`, {
-              offered,
-              aht,
-              scheduledTime,
-              serviceLevel,
-              asa,
-              occupancy
-            });
-          }
-
-          // Determine data completeness
           let dataStatus = 'Complete';
           let statusClass = 'status-complete';
           
@@ -830,24 +936,12 @@
             statusClass = 'status-warning';
           }
 
-          // Add to totals
-          weeklyTotals.offered += offered;
-          weeklyTotals.aht += aht;
-          weeklyTotals.scheduledTime += scheduledTime;
-          weeklyTotals.serviceLevel += serviceLevel;
-          weeklyTotals.asa += asa;
-          weeklyTotals.occupancy += occupancy;
-          weeklyTotals.count++;
-
           const dayOfWeek = getDayOfWeek(day.uk);
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td>${state.planningGroupName}</td>
               <td>${group.mediaType}</td>
-              <td>${Math.round(offered)}</td>
-              <td>${formatTime(aht)}</td>
               <td>${formatHours(scheduledTime)}</td>
               <td>${formatNumber(serviceLevel)}%</td>
               <td>${formatTime(asa)}</td>
@@ -863,7 +957,128 @@
         });
       });
 
-      // Weekly averages
+      tableHTML += '</tbody></table></div>';
+      document.getElementById('actualTableContainer').innerHTML = tableHTML;
+    }
+
+    function renderForecastTable(mediaTypeFilter) {
+      let tableHTML = `
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Media Type</th>
+                <th>Forecast Offered</th>
+                <th>Forecast AHT</th>
+                <th>Data Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      state.weekData.forEach(day => {
+        if (!day.data || !day.data.result) {
+          const dayOfWeek = getDayOfWeek(day.uk);
+          tableHTML += `
+            <tr>
+              <td>${day.uk}</td>
+              <td>${dayOfWeek}</td>
+              <td colspan="5" class="no-data">${day.error || 'No data available'}</td>
+            </tr>
+          `;
+          return;
+        }
+
+        const groupings = day.data.result.intradayDataGroupings;
+        
+        if (!Array.isArray(groupings) || groupings.length === 0) {
+          const dayOfWeek = getDayOfWeek(day.uk);
+          tableHTML += `
+            <tr>
+              <td>${day.uk}</td>
+              <td>${dayOfWeek}</td>
+              <td colspan="5" class="no-data">No data groupings available</td>
+            </tr>
+          `;
+          return;
+        }
+
+        groupings.forEach(group => {
+          if (!group || !group.mediaType) return;
+          if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
+
+          const forecastSummary = group.forecastDataSummary || {};
+
+          const offered = forecastSummary.offered || 0;
+          const aht = forecastSummary.averageHandleTimeSeconds || 0;
+
+          let dataStatus = 'Available';
+          let statusClass = 'status-complete';
+          
+          if (!group.forecastDataSummary) {
+            dataStatus = 'No Forecast';
+            statusClass = 'status-warning';
+          } else if (offered === 0) {
+            dataStatus = 'Zero Forecast';
+            statusClass = 'status-warning';
+          }
+
+          const dayOfWeek = getDayOfWeek(day.uk);
+          tableHTML += `
+            <tr>
+              <td>${day.uk}</td>
+              <td>${dayOfWeek}</td>
+              <td>${group.mediaType}</td>
+              <td>${Math.round(offered)}</td>
+              <td>${formatTime(aht)}</td>
+              <td class="${statusClass}">${dataStatus}</td>
+              <td>
+                <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
+                  View Details
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      });
+
+      tableHTML += '</tbody></table></div>';
+      document.getElementById('forecastTableContainer').innerHTML = tableHTML;
+    }
+
+    function updateWeeklySummary(mediaTypeFilter) {
+      const weeklyTotals = { 
+        offered: 0, aht: 0, scheduledTime: 0, 
+        serviceLevel: 0, asa: 0, occupancy: 0, count: 0 
+      };
+
+      state.weekData.forEach(day => {
+        if (!day.data || !day.data.result) return;
+        
+        const groupings = day.data.result.intradayDataGroupings;
+        if (!Array.isArray(groupings)) return;
+
+        groupings.forEach(group => {
+          if (!group || !group.mediaType) return;
+          if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
+
+          const forecastSummary = group.forecastDataSummary || {};
+          const scheduleSummary = group.scheduleDataSummary || {};
+          const performanceSummary = group.performancePredictionDataSummary || {};
+
+          weeklyTotals.offered += forecastSummary.offered || 0;
+          weeklyTotals.aht += forecastSummary.averageHandleTimeSeconds || 0;
+          weeklyTotals.scheduledTime += scheduleSummary.onQueueTimeSeconds || 0;
+          weeklyTotals.serviceLevel += performanceSummary.serviceLevelPercent || 0;
+          weeklyTotals.asa += performanceSummary.averageSpeedOfAnswerSeconds || 0;
+          weeklyTotals.occupancy += performanceSummary.occupancyPercent || 0;
+          weeklyTotals.count++;
+        });
+      });
+
       const weeklyAvgAHT = weeklyTotals.count ? weeklyTotals.aht / weeklyTotals.count : 0;
       const weeklyAvgSL = weeklyTotals.count ? weeklyTotals.serviceLevel / weeklyTotals.count : 0;
       const weeklyAvgASA = weeklyTotals.count ? weeklyTotals.asa / weeklyTotals.count : 0;
@@ -900,8 +1115,6 @@
 
       document.getElementById('weeklySummary').innerHTML = summaryHTML;
       document.getElementById('weeklySummary').className = '';
-      tableHTML += '</tbody></table></div>';
-      document.getElementById('dailyTableContainer').innerHTML = tableHTML;
     }
 
     function render15MinTable(day, mediaType) {
@@ -929,15 +1142,6 @@
           tableHTML += '<tr><td colspan="7" class="no-data">No data for selected media type</td></tr>';
         } else {
           const startDate = new Date(day.data.result.startDate);
-          
-          // Debug the interval data
-          if (DEBUG) {
-            console.log(`⏱️ Interval data for ${day.uk} - ${mediaType}:`, {
-              forecastIntervals: grouping.forecastDataPerInterval?.length || 0,
-              scheduleIntervals: grouping.scheduleDataPerInterval?.length || 0,
-              performanceIntervals: grouping.performancePredictionDataPerInterval?.length || 0
-            });
-          }
           
           for (let i = 0; i < 96; i++) {
             const intervalTime = new Date(startDate);
