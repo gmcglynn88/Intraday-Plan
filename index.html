@@ -36,6 +36,12 @@
     th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
     th { background-color: var(--primary-color); color: white; font-weight: 600; }
     tr:hover { background-color: rgba(99, 171, 143, 0.05); }
+    
+    /* Consolidated table specific styles */
+    .consolidated-table th.group-header { background-color: var(--secondary-color); text-align: center; }
+    .consolidated-table th.sub-header { background-color: rgba(99, 171, 143, 0.8); }
+    .weekly-totals-row { background-color: rgba(99, 171, 143, 0.1); font-weight: 600; }
+    .weekly-totals-row td { border-bottom: 2px solid var(--primary-color); }
 
     /* Tab Styling */
     .tab { display: inline-block; padding: 12px 20px; margin-right: 10px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: 500; }
@@ -169,16 +175,10 @@
         <h2 class="section-title">Daily Data</h2>
         <div id="weeklySummary" class="loading">Select a week and click "Load Data" to view data</div>
         
-        <!-- Actual Performance Data -->
-        <div class="metrics-section" id="actualSection" style="display: none;">
-          <h3>📊 Actual Performance Data</h3>
-          <div id="actualTableContainer"></div>
-        </div>
-        
-        <!-- Forecast Data -->
-        <div class="metrics-section" id="forecastSection" style="display: none;">
-          <h3>🔮 Forecast & Prediction Data</h3>
-          <div id="forecastTableContainer"></div>
+        <!-- Consolidated Data Table -->
+        <div class="metrics-section" id="consolidatedSection" style="display: none;">
+          <h3>📊 Weekly Performance Summary</h3>
+          <div id="consolidatedTableContainer"></div>
         </div>
       </div>
       
@@ -572,8 +572,7 @@
         document.getElementById('loadDataBtn').textContent = 'Loading...';
         
         // Hide previous tables
-        document.getElementById('actualSection').style.display = 'none';
-        document.getElementById('forecastSection').style.display = 'none';
+        document.getElementById('consolidatedSection').style.display = 'none';
         
         fetchDataForWeek(weekStart).finally(() => {
           document.getElementById('loadDataBtn').disabled = false;
@@ -591,7 +590,7 @@
 
     // Helper functions
     function formatTime(seconds) {
-      if (!seconds) return '0s';
+      if (!seconds) return '-';
       seconds = Math.round(seconds);
       if (config.timeFormat === 'hms') {
         const h = Math.floor(seconds / 3600);
@@ -604,12 +603,18 @@
     }
 
     function formatHours(seconds) {
-      if (!seconds) return '0h';
+      if (!seconds) return '-';
       return (seconds / 3600).toFixed(config.precision) + 'h';
     }
 
     function formatNumber(num) {
+      if (num === 0 || num === null || num === undefined) return '-';
       return num.toFixed(config.precision);
+    }
+
+    function formatPercentage(num) {
+      if (num === 0 || num === null || num === undefined) return '-';
+      return num.toFixed(config.precision) + '%';
     }
 
     function getDayOfWeek(dateStr) {
@@ -822,7 +827,7 @@
 
     // Rendering functions
     function renderAllData() {
-      renderDailyTables();
+      renderConsolidatedTable();
       
       // Add debug inspection
       if (DEBUG) {
@@ -841,148 +846,87 @@
       }
     }
 
-    function renderDailyTables() {
+    function renderConsolidatedTable() {
       const mediaTypeFilter = document.getElementById('mediaType').value;
       
-      // Show both sections
-      document.getElementById('actualSection').style.display = 'block';
-      document.getElementById('forecastSection').style.display = 'block';
+      // Show consolidated section
+      document.getElementById('consolidatedSection').style.display = 'block';
       
-      // Render Actual Performance Table
-      renderActualTable(mediaTypeFilter);
-      
-      // Render Forecast Table
-      renderForecastTable(mediaTypeFilter);
-      
-      // Update weekly summary
-      updateWeeklySummary(mediaTypeFilter);
-    }
-
-    function renderActualTable(mediaTypeFilter) {
       let tableHTML = `
         <div class="table-container">
-          <table>
+          <table class="consolidated-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Day</th>
-                <th>Media Type</th>
-                <th>Offered</th>
-                <th>Actual</th>
-                <th>Average Handle Time</th>
-                <th>Service Level</th>
-                <th>Data Status</th>
-                <th>Action</th>
+                <th rowspan="2">Date</th>
+                <th rowspan="2">Day</th>
+                <th rowspan="2">Media Type</th>
+                <th colspan="2" class="group-header">Offered</th>
+                <th colspan="2" class="group-header">Average Handle Time</th>
+                <th colspan="2" class="group-header">Service Level</th>
+                <th rowspan="2">Action</th>
+              </tr>
+              <tr>
+                <th class="sub-header">Forecast</th>
+                <th class="sub-header">Actual</th>
+                <th class="sub-header">Forecast</th>
+                <th class="sub-header">Actual</th>
+                <th class="sub-header">Predicted</th>
+                <th class="sub-header">Actual</th>
               </tr>
             </thead>
             <tbody>
       `;
 
-      state.weekData.forEach(day => {
-        if (!day.data || !day.data.result) {
-          const dayOfWeek = getDayOfWeek(day.uk);
-          tableHTML += `
-            <tr>
-              <td>${day.uk}</td>
-              <td>${dayOfWeek}</td>
-              <td colspan="7" class="no-data">${day.error || 'No data available'}</td>
-            </tr>
-          `;
-          return;
-        }
+      // Calculate weekly totals
+      const weeklyTotals = {
+        offeredForecast: 0,
+        offeredActual: 0,
+        ahtForecast: 0,
+        ahtActual: 0,
+        slPredicted: 0,
+        slActual: 0,
+        count: 0
+      };
 
-        const groupings = day.data.result.intradayDataGroupings;
+      // Add weekly totals row
+      state.weekData.forEach(day => {
+        if (!day.data || !day.data.result) return;
         
-        if (!Array.isArray(groupings) || groupings.length === 0) {
-          const dayOfWeek = getDayOfWeek(day.uk);
-          tableHTML += `
-            <tr>
-              <td>${day.uk}</td>
-              <td>${dayOfWeek}</td>
-              <td colspan="7" class="no-data">No data groupings available</td>
-            </tr>
-          `;
-          return;
-        }
+        const groupings = day.data.result.intradayDataGroupings;
+        if (!Array.isArray(groupings)) return;
 
         groupings.forEach(group => {
           if (!group || !group.mediaType) return;
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
           const forecastSummary = group.forecastDataSummary || {};
-          const scheduleSummary = group.scheduleDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
 
-          const offered = forecastSummary.offered || 0;
-          const actualOffered = offered; // Placeholder - you may need to get actual data from another source
-          const aht = forecastSummary.averageHandleTimeSeconds || 0;
-          const serviceLevel = performanceSummary.serviceLevelPercent || 0;
-
-          let dataStatus = 'Complete';
-          let statusClass = 'status-complete';
-          
-          if (!group.scheduleDataSummary) {
-            dataStatus = 'No Schedule';
-            statusClass = 'status-warning';
-          } else if (scheduleSummary.onQueueTimeSeconds === 0) {
-            dataStatus = 'No Agents Scheduled';
-            statusClass = 'status-warning';
-          }
-          
-          if (!group.performancePredictionDataSummary) {
-            dataStatus = 'No Predictions';
-            statusClass = 'status-warning';
-          } else if (serviceLevel === 0) {
-            dataStatus = 'Zero Predictions';
-            statusClass = 'status-warning';
-          }
-
-          const dayOfWeek = getDayOfWeek(day.uk);
-          tableHTML += `
-            <tr>
-              <td>${day.uk}</td>
-              <td>${dayOfWeek}</td>
-              <td>${group.mediaType}</td>
-              <td>${Math.round(offered)}</td>
-              <td>${Math.round(actualOffered)}</td>
-              <td>${formatTime(aht)}</td>
-              <td>${formatNumber(serviceLevel)}%</td>
-              <td class="${statusClass}">${dataStatus}</td>
-              <td>
-                <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
-                  View Details
-                </button>
-              </td>
-            </tr>
-          `;
+          weeklyTotals.offeredForecast += forecastSummary.offered || 0;
+          weeklyTotals.offeredActual += forecastSummary.offered || 0; // Placeholder - replace with actual data
+          weeklyTotals.ahtForecast += forecastSummary.averageHandleTimeSeconds || 0;
+          weeklyTotals.ahtActual += forecastSummary.averageHandleTimeSeconds || 0; // Placeholder - replace with actual data
+          weeklyTotals.slPredicted += performanceSummary.serviceLevelPercent || 0;
+          weeklyTotals.slActual += performanceSummary.serviceLevelPercent || 0; // Placeholder - replace with actual data
+          weeklyTotals.count++;
         });
       });
 
-      tableHTML += '</tbody></table></div>';
-      document.getElementById('actualTableContainer').innerHTML = tableHTML;
-    }
-
-    function renderForecastTable(mediaTypeFilter) {
-      let tableHTML = `
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Day</th>
-                <th>Media Type</th>
-                <th>Offered Forecast</th>
-                <th>Actual</th>
-                <th>Average Handle Time Forecast</th>
-                <th>Service Level Predicted</th>
-                <th>Actual</th>
-                <th>Data Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
+      // Add weekly totals row
+      tableHTML += `
+        <tr class="weekly-totals-row">
+          <td colspan="3"><strong>Week Totals</strong></td>
+          <td><strong>${Math.round(weeklyTotals.offeredForecast)}</strong></td>
+          <td><strong>${Math.round(weeklyTotals.offeredActual)}</strong></td>
+          <td><strong>${formatTime(weeklyTotals.ahtForecast)}</strong></td>
+          <td><strong>${formatTime(weeklyTotals.ahtActual)}</strong></td>
+          <td><strong>${formatPercentage(weeklyTotals.slPredicted)}</strong></td>
+          <td><strong>${formatPercentage(weeklyTotals.slActual)}</strong></td>
+          <td></td>
+        </tr>
       `;
 
+      // Add daily data rows
       state.weekData.forEach(day => {
         if (!day.data || !day.data.result) {
           const dayOfWeek = getDayOfWeek(day.uk);
@@ -990,7 +934,7 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="9" class="no-data">${day.error || 'No data available'}</td>
+              <td colspan="8" class="no-data">${day.error || 'No data available'}</td>
             </tr>
           `;
           return;
@@ -1004,7 +948,7 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="9" class="no-data">No data groupings available</td>
+              <td colspan="8" class="no-data">No data groupings available</td>
             </tr>
           `;
           return;
@@ -1018,21 +962,11 @@
           const performanceSummary = group.performancePredictionDataSummary || {};
 
           const offeredForecast = forecastSummary.offered || 0;
-          const actualOffered = offeredForecast; // Placeholder - you may need to get actual data from another source
+          const offeredActual = offeredForecast; // Placeholder - replace with actual data
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
-          const serviceLevelPredicted = performanceSummary.serviceLevelPercent || 0;
-          const serviceLevelActual = serviceLevelPredicted; // Placeholder - you may need to get actual data from another source
-
-          let dataStatus = 'Available';
-          let statusClass = 'status-complete';
-          
-          if (!group.forecastDataSummary) {
-            dataStatus = 'No Forecast';
-            statusClass = 'status-warning';
-          } else if (offeredForecast === 0) {
-            dataStatus = 'Zero Forecast';
-            statusClass = 'status-warning';
-          }
+          const ahtActual = ahtForecast; // Placeholder - replace with actual data
+          const slPredicted = performanceSummary.serviceLevelPercent || 0;
+          const slActual = slPredicted; // Placeholder - replace with actual data
 
           const dayOfWeek = getDayOfWeek(day.uk);
           tableHTML += `
@@ -1041,11 +975,11 @@
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
               <td>${Math.round(offeredForecast)}</td>
-              <td>${Math.round(actualOffered)}</td>
+              <td>${Math.round(offeredActual)}</td>
               <td>${formatTime(ahtForecast)}</td>
-              <td>${formatNumber(serviceLevelPredicted)}%</td>
-              <td>${formatNumber(serviceLevelActual)}%</td>
-              <td class="${statusClass}">${dataStatus}</td>
+              <td>${formatTime(ahtActual)}</td>
+              <td>${formatPercentage(slPredicted)}</td>
+              <td>${formatPercentage(slActual)}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
                   View Details
@@ -1057,7 +991,10 @@
       });
 
       tableHTML += '</tbody></table></div>';
-      document.getElementById('forecastTableContainer').innerHTML = tableHTML;
+      document.getElementById('consolidatedTableContainer').innerHTML = tableHTML;
+      
+      // Update weekly summary
+      updateWeeklySummary(mediaTypeFilter);
     }
 
     function updateWeeklySummary(mediaTypeFilter) {
@@ -1154,6 +1091,7 @@
         } else {
           const startDate = new Date(day.data.result.startDate);
           
+          // Create a full day of intervals (midnight to midnight)
           for (let i = 0; i < 96; i++) {
             const intervalTime = new Date(startDate);
             intervalTime.setMinutes(intervalTime.getMinutes() + i * 15);
@@ -1164,27 +1102,18 @@
             const schedule = grouping.scheduleDataPerInterval?.[i] || {};
             const performance = grouping.performancePredictionDataPerInterval?.[i] || {};
 
-            // Skip intervals with no data at all
-            if (!forecast.offered && !schedule.onQueueTimeSeconds && !performance.serviceLevelPercent) {
-              continue;
-            }
-
+            // Always show all intervals, use '-' for missing data
             tableHTML += `
               <tr>
                 <td>${timeStr}</td>
-                <td>${forecast.offered ? Math.round(forecast.offered * 100) / 100 : 0}</td>
-                <td>${formatTime(forecast.averageHandleTimeSeconds || 0)}</td>
-                <td>${formatHours(schedule.onQueueTimeSeconds || 0)}</td>
-                <td>${performance.serviceLevelPercent ? formatNumber(performance.serviceLevelPercent) + '%' : '0%'}</td>
-                <td>${formatTime(performance.averageSpeedOfAnswerSeconds || 0)}</td>
-                <td>${performance.occupancyPercent ? formatNumber(performance.occupancyPercent) + '%' : '0%'}</td>
+                <td>${forecast.offered ? Math.round(forecast.offered * 100) / 100 : '-'}</td>
+                <td>${forecast.averageHandleTimeSeconds ? formatTime(forecast.averageHandleTimeSeconds) : '-'}</td>
+                <td>${schedule.onQueueTimeSeconds ? formatHours(schedule.onQueueTimeSeconds) : '-'}</td>
+                <td>${performance.serviceLevelPercent ? formatNumber(performance.serviceLevelPercent) + '%' : '-'}</td>
+                <td>${performance.averageSpeedOfAnswerSeconds ? formatTime(performance.averageSpeedOfAnswerSeconds) : '-'}</td>
+                <td>${performance.occupancyPercent ? formatNumber(performance.occupancyPercent) + '%' : '-'}</td>
               </tr>
             `;
-          }
-          
-          // If no data rows were added
-          if (!tableHTML.includes('<tr>')) {
-            tableHTML += '<tr><td colspan="7" class="no-data">No interval data available for this day</td></tr>';
           }
         }
       } else {
