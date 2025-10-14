@@ -186,7 +186,8 @@
 
   <script>
     // ===== OAuth Config =====
-    const clientId = 'd4529142-7340-4cd8-a9f9-f3a4d25670df';
+    // Option 1: Use the same client ID as your Activity Code app (if it has the redirect URI)
+    const clientId = '256876c6-470d-4304-8e7d-2038f8a55d95';
     
     // Use the EXACT URI that's registered in Genesys Cloud
     const redirectUri = 'https://gmcglynn88.github.io/Intraday-Plan/';
@@ -228,6 +229,15 @@
         document.getElementById('auth-message').textContent = `OAuth error: ${oauthErrorDesc || oauthError}`;
         document.getElementById('auth-message').className = 'error-message';
         console.error('OAuth error details:', { error: oauthError, description: oauthErrorDesc });
+        
+        // Add troubleshooting info
+        setTimeout(() => {
+          document.getElementById('auth-message').innerHTML += `
+            <br><br><strong>Troubleshooting:</strong>
+            <br>• Check if client ID ${clientId} has redirect URI ${redirectUri} registered
+            <br>• Ensure the redirect URI matches exactly in Genesys Cloud OAuth settings
+          `;
+        }, 1000);
         return;
       }
 
@@ -279,6 +289,7 @@
       populateWeekSelect();
     }
 
+    // ... rest of your existing functions remain exactly the same ...
     function onBusinessUnitChange() {
       const buId = this.value;
       const planningGroupSelect = document.getElementById('planningGroup');
@@ -340,7 +351,6 @@
 
     function getDayOfWeek(dateStr) {
       try {
-        // Try parsing as UK format (DD/MM/YYYY)
         const parts = dateStr.split('/');
         if (parts.length === 3) {
           const day = parseInt(parts[0], 10);
@@ -352,7 +362,6 @@
           }
         }
         
-        // Fallback to ISO format
         const date = new Date(dateStr);
         if (!isNaN(date.getTime())) {
           return date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -394,12 +403,10 @@
       const today = new Date();
       const currentYear = today.getFullYear();
       
-      // Start from the most recent Monday
       const dayOfWeek = today.getDay();
       const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
       const monday = new Date(today.setDate(diff));
       
-      // Create options for 52 weeks (1 year)
       for (let w = 0; w < 52; w++) {
         const weekStart = new Date(monday);
         weekStart.setDate(monday.getDate() + (w * 7));
@@ -414,7 +421,6 @@
         option.value = isoWeekStart;
         option.textContent = `Week ${weekStartStr} - ${weekEndStr}`;
         
-        // Mark current week as selected
         if (w === 0) {
           option.selected = true;
         }
