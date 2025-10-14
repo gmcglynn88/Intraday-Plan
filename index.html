@@ -186,10 +186,11 @@
 
   <script>
     // ===== OAuth Config =====
+    // Use the same client ID that worked for your Activity Code Management app
     const clientId = 'd4529142-7340-4cd8-a9f9-f3a4d25670df';
     
-    // Use the EXACT URI that's registered in Genesys Cloud
-    const redirectUri = 'https://gmcglynn88.github.io/Intraday-Plan/';
+    // Try without trailing slash (sometimes this matters)
+    const redirectUri = 'https://gmcglynn88.github.io/Intraday-Plan';
     
     const oauthUrl = `https://login.mypurecloud.ie/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
@@ -229,13 +230,18 @@
         document.getElementById('auth-message').className = 'error-message';
         console.error('OAuth error details:', { error: oauthError, description: oauthErrorDesc });
         
-        // Add troubleshooting info
+        // Add detailed troubleshooting info
         setTimeout(() => {
           document.getElementById('auth-message').innerHTML += `
-            <br><br><strong>Troubleshooting:</strong>
-            <br>• Verify client ID ${clientId} has redirect URI ${redirectUri} registered in Genesys Cloud
-            <br>• Check for exact match (including trailing slash)
-            <br>• Ensure OAuth client is enabled
+            <br><br><strong>Troubleshooting Steps:</strong>
+            <br>1. Go to Genesys Cloud Admin → Integrations → OAuth
+            <br>2. Find client ID: ${clientId}
+            <br>3. Add redirect URI: ${redirectUri}
+            <br>4. Make sure it matches exactly (no trailing slash)
+            <br>5. Save and try again
+            <br><br><strong>Current Configuration:</strong>
+            <br>Client ID: ${clientId}
+            <br>Redirect URI: ${redirectUri}
           `;
         }, 1000);
         return;
