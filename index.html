@@ -730,10 +730,10 @@
       try {
         console.log(`🔍 Fetching intraday data for ${date}...`);
         
-        // Modified request body to try to get historical data
+        // Use only the valid categories
         const requestBody = {
           businessUnitDate: date, // Format: yyyy-MM-dd
-          categories: ["ForecastData", "ScheduleData", "PerformancePredictionData", "HistoricalData"],
+          categories: ["ForecastData", "ScheduleData", "PerformancePredictionData"],
           intervalLengthMinutes: 15
         };
         
@@ -788,7 +788,6 @@
                 forecastSummary: group.forecastDataSummary,
                 scheduleSummary: group.scheduleDataSummary,
                 performanceSummary: group.performancePredictionDataSummary,
-                historicalSummary: group.historicalDataSummary,
                 availableCategories: Object.keys(group)
               });
             });
@@ -906,17 +905,17 @@
           const forecastSummary = group.forecastDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
           const scheduleSummary = group.scheduleDataSummary || {};
-          const historicalSummary = group.historicalDataSummary || {};
 
           // Forecast data
           const offeredForecast = forecastSummary.offered || 0;
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
 
-          // Actual data - prioritize historical data, then performance data
-          const offeredActual = historicalSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
-          const ahtActual = historicalSummary.averageHandleTimeSeconds || performanceSummary.averageHandleTimeSeconds || ahtForecast;
-          const slActual = historicalSummary.serviceLevelPercent || performanceSummary.serviceLevelPercent || 0;
+          // For actual data, we'll use performance prediction data as the closest approximation
+          // In a real implementation, you would need to fetch historical data from a different endpoint
+          const offeredActual = performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
+          const ahtActual = performanceSummary.averageHandleTimeSeconds || ahtForecast;
+          const slActual = performanceSummary.serviceLevelPercent || 0;
 
           weeklyTotals.offeredForecast += offeredForecast;
           weeklyTotals.offeredActual += offeredActual;
@@ -982,17 +981,16 @@
           const forecastSummary = group.forecastDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
           const scheduleSummary = group.scheduleDataSummary || {};
-          const historicalSummary = group.historicalDataSummary || {};
 
           // Forecast data
           const offeredForecast = forecastSummary.offered || 0;
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
 
-          // Actual data - prioritize historical data, then performance data
-          const offeredActual = historicalSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
-          const ahtActual = historicalSummary.averageHandleTimeSeconds || performanceSummary.averageHandleTimeSeconds || ahtForecast;
-          const slActual = historicalSummary.serviceLevelPercent || performanceSummary.serviceLevelPercent || 0;
+          // For actual data, use performance prediction data as approximation
+          const offeredActual = performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
+          const ahtActual = performanceSummary.averageHandleTimeSeconds || ahtForecast;
+          const slActual = performanceSummary.serviceLevelPercent || 0;
 
           const dayOfWeek = getDayOfWeek(day.uk);
           
