@@ -186,13 +186,25 @@
 
   <script>
     // ===== OAuth Config =====
-    // Use the same client ID that worked for your Activity Code Management app
-    const clientId = 'fe305808-b368-4547-8af9-325d28d552bb';
-    
-    // Try without trailing slash (sometimes this matters)
-    const redirectUri = 'https://gmcglynn88.github.io/Intraday-Plan';
-    
-    const oauthUrl = `https://login.mypurecloud.ie/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const clientId = 'd4529142-7340-4cd8-a9f9-f3a4d25670df';
+
+    // IMPORTANT: GitHub Pages path needs the trailing slash to avoid a redirect that drops the token.
+    const redirectUri = 'https://gmcglynn88.github.io/Intraday-Plan/';
+
+    // Configuration (keep region centralised)
+    const config = {
+      timeFormat: 'seconds',
+      precision: 1,
+      REGION: 'mypurecloud.ie'
+    };
+
+    // Build the OAuth URL using the configured region
+    const oauthUrl =
+      `https://login.${config.REGION}/oauth/authorize` +
+      `?client_id=${encodeURIComponent(clientId)}` +
+      `&response_type=token` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=intraday`;
 
     // Debug logging
     console.log('OAuth Configuration:');
@@ -200,13 +212,6 @@
     console.log('- Redirect URI:', redirectUri);
     console.log('- Encoded Redirect URI:', encodeURIComponent(redirectUri));
     console.log('- Full OAuth URL:', oauthUrl);
-
-    // Configuration
-    const config = {
-      timeFormat: 'seconds',
-      precision: 1,
-      REGION: 'mypurecloud.ie'
-    };
 
     // State management
     const state = {
@@ -237,7 +242,7 @@
             <br>1. Go to Genesys Cloud Admin → Integrations → OAuth
             <br>2. Find client ID: ${clientId}
             <br>3. Add redirect URI: ${redirectUri}
-            <br>4. Make sure it matches exactly (no trailing slash)
+            <br>4. Make sure it matches exactly (note the trailing slash)
             <br>5. Save and try again
             <br><br><strong>Current Configuration:</strong>
             <br>Client ID: ${clientId}
@@ -247,18 +252,21 @@
         return;
       }
 
-      state.accessToken = params.get('access_token');
+      // Access token from fragment or session
+      const tokenFromHash = params.get('access_token');
+      const tokenFromSession = sessionStorage.getItem('purecloud_token');
 
-      if (state.accessToken) {
+      if (tokenFromHash) {
+        state.accessToken = tokenFromHash;
         sessionStorage.setItem('purecloud_token', state.accessToken);
-        // Clean URL after successful auth
-        window.location.hash = '';
+        // Clean URL after successful auth without navigating away
+        history.replaceState(null, '', window.location.href.split('#')[0]);
         initializeApplication();
-      } else if (sessionStorage.getItem('purecloud_token')) {
-        state.accessToken = sessionStorage.getItem('purecloud_token');
+      } else if (tokenFromSession) {
+        state.accessToken = tokenFromSession;
         initializeApplication();
       } else {
-        console.log('Initiating OAuth flow with:', { clientId, redirectUri });
+        console.log('Initiating OAuth flow with:', { clientId, redirectUri, region: config.REGION });
         window.location.href = oauthUrl;
       }
     });
@@ -364,13 +372,13 @@
           const year = parseInt(parts[2], 10);
           const date = new Date(year, month, day);
           if (!isNaN(date.getTime())) {
-            return date.toLocaleDateString('en-US', { weekday: 'long' });
+            return date.toLocaleDateString('en-GB', { weekday: 'long' });
           }
         }
         
         const date = new Date(dateStr);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString('en-US', { weekday: 'long' });
+          return date.toLocaleDateString('en-GB', { weekday: 'long' });
         }
       } catch (e) {
         console.error('Error parsing date:', dateStr, e);
@@ -407,10 +415,8 @@
       select.innerHTML = '<option value="">-- Select Week --</option>';
       
       const today = new Date();
-      const currentYear = today.getFullYear();
-      
       const dayOfWeek = today.getDay();
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday as week start
       const monday = new Date(today.setDate(diff));
       
       for (let w = 0; w < 52; w++) {
