@@ -867,10 +867,10 @@
                 <th>Date</th>
                 <th>Day</th>
                 <th>Media Type</th>
-                <th>Scheduled Time</th>
+                <th>Offered</th>
+                <th>Actual</th>
+                <th>Average Handle Time</th>
                 <th>Service Level</th>
-                <th>ASA</th>
-                <th>Occupancy</th>
                 <th>Data Status</th>
                 <th>Action</th>
               </tr>
@@ -909,13 +909,14 @@
           if (!group || !group.mediaType) return;
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
+          const forecastSummary = group.forecastDataSummary || {};
           const scheduleSummary = group.scheduleDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
 
-          const scheduledTime = scheduleSummary.onQueueTimeSeconds || 0;
+          const offered = forecastSummary.offered || 0;
+          const actualOffered = offered; // Placeholder - you may need to get actual data from another source
+          const aht = forecastSummary.averageHandleTimeSeconds || 0;
           const serviceLevel = performanceSummary.serviceLevelPercent || 0;
-          const asa = performanceSummary.averageSpeedOfAnswerSeconds || 0;
-          const occupancy = performanceSummary.occupancyPercent || 0;
 
           let dataStatus = 'Complete';
           let statusClass = 'status-complete';
@@ -923,7 +924,7 @@
           if (!group.scheduleDataSummary) {
             dataStatus = 'No Schedule';
             statusClass = 'status-warning';
-          } else if (scheduledTime === 0) {
+          } else if (scheduleSummary.onQueueTimeSeconds === 0) {
             dataStatus = 'No Agents Scheduled';
             statusClass = 'status-warning';
           }
@@ -931,7 +932,7 @@
           if (!group.performancePredictionDataSummary) {
             dataStatus = 'No Predictions';
             statusClass = 'status-warning';
-          } else if (serviceLevel === 0 && asa === 0 && occupancy === 0) {
+          } else if (serviceLevel === 0) {
             dataStatus = 'Zero Predictions';
             statusClass = 'status-warning';
           }
@@ -942,10 +943,10 @@
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
-              <td>${formatHours(scheduledTime)}</td>
+              <td>${Math.round(offered)}</td>
+              <td>${Math.round(actualOffered)}</td>
+              <td>${formatTime(aht)}</td>
               <td>${formatNumber(serviceLevel)}%</td>
-              <td>${formatTime(asa)}</td>
-              <td>${formatNumber(occupancy)}%</td>
               <td class="${statusClass}">${dataStatus}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
@@ -970,8 +971,11 @@
                 <th>Date</th>
                 <th>Day</th>
                 <th>Media Type</th>
-                <th>Forecast Offered</th>
-                <th>Forecast AHT</th>
+                <th>Offered Forecast</th>
+                <th>Actual</th>
+                <th>Average Handle Time Forecast</th>
+                <th>Service Level Predicted</th>
+                <th>Actual</th>
                 <th>Data Status</th>
                 <th>Action</th>
               </tr>
@@ -986,7 +990,7 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="5" class="no-data">${day.error || 'No data available'}</td>
+              <td colspan="9" class="no-data">${day.error || 'No data available'}</td>
             </tr>
           `;
           return;
@@ -1000,7 +1004,7 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="5" class="no-data">No data groupings available</td>
+              <td colspan="9" class="no-data">No data groupings available</td>
             </tr>
           `;
           return;
@@ -1011,9 +1015,13 @@
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
           const forecastSummary = group.forecastDataSummary || {};
+          const performanceSummary = group.performancePredictionDataSummary || {};
 
-          const offered = forecastSummary.offered || 0;
-          const aht = forecastSummary.averageHandleTimeSeconds || 0;
+          const offeredForecast = forecastSummary.offered || 0;
+          const actualOffered = offeredForecast; // Placeholder - you may need to get actual data from another source
+          const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
+          const serviceLevelPredicted = performanceSummary.serviceLevelPercent || 0;
+          const serviceLevelActual = serviceLevelPredicted; // Placeholder - you may need to get actual data from another source
 
           let dataStatus = 'Available';
           let statusClass = 'status-complete';
@@ -1021,7 +1029,7 @@
           if (!group.forecastDataSummary) {
             dataStatus = 'No Forecast';
             statusClass = 'status-warning';
-          } else if (offered === 0) {
+          } else if (offeredForecast === 0) {
             dataStatus = 'Zero Forecast';
             statusClass = 'status-warning';
           }
@@ -1032,8 +1040,11 @@
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
-              <td>${Math.round(offered)}</td>
-              <td>${formatTime(aht)}</td>
+              <td>${Math.round(offeredForecast)}</td>
+              <td>${Math.round(actualOffered)}</td>
+              <td>${formatTime(ahtForecast)}</td>
+              <td>${formatNumber(serviceLevelPredicted)}%</td>
+              <td>${formatNumber(serviceLevelActual)}%</td>
               <td class="${statusClass}">${dataStatus}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
