@@ -1,126 +1,209 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Intraday Weekly Plan</title>
-  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .container { margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background: #f0f0f0; }
+    :root{
+      --primary-color:#63AB8F; --secondary-color:#4A8C7D; --border-color:#DEE2E6;
+      --light-bg:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --text-light:#6C757D;
+      --pill:#e9f6f0;
+    }
+    body{
+      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+      margin:20px;padding:20px;max-width:1200px;background:var(--light-bg);color:var(--text-color)
+    }
+    #logo-container{text-align:center;margin-bottom:20px} #logo{width:300px}
+    h1{margin:0 0 16px}
+    .card{background:var(--card-bg);border:1px solid var(--border-color);border-radius:12px;padding:24px;margin-top:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    label{display:block;font-weight:600;margin-bottom:6px}
+    input,select,button,textarea{padding:10px;border:1px solid var(--border-color);border-radius:6px;background:#fff;font-size:14px}
+    button{background:var(--primary-color);color:#fff;font-weight:600;cursor:pointer;transition:background .2s}
+    button:hover{background:var(--secondary-color)} button:disabled{background:var(--text-light);cursor:not-allowed}
+    .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:end}
+    .full-width-btn{width:100%;padding:14px 18px;font-size:16px;margin-top:12px}
+    .muted{color:var(--text-light);font-size:12px}
+    .section-title{margin:0 0 10px;color:var(--secondary-color)}
+
+    #messageContainer{display:none;margin-top:12px}
+    .error-message{color:#b4231a;background:#fee2e2;border:1px solid #fecaca;padding:10px;border-radius:6px}
+    .success-message{color:#14532d;background:#dcfce7;border:1px solid #bbf7d0;padding:10px;border-radius:6px}
+    .info-message{color:#6b4e16;background:#fff7ed;border:1px solid #ffedd5;padding:10px;border-radius:6px}
+
+    /* Table Styling */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    th {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 600;
+    }
+    
+    tr:hover {
+      background-color: rgba(99, 171, 143, 0.05);
+    }
+
+    /* Tab Styling */
     .tab {
       display: inline-block;
-      padding: 10px;
+      padding: 12px 20px;
       margin-right: 10px;
       background: #eee;
       cursor: pointer;
+      border-radius: 6px;
+      font-weight: 500;
     }
+    
     .tab.active {
-      background: #ddd;
-      font-weight: bold;
+      background: var(--primary-color);
+      color: white;
+      font-weight: 600;
     }
+    
     .tab-content {
       display: none;
     }
+    
     .tab-content.active {
       display: block;
     }
-    .no-data { color: #999; font-style: italic; }
-    button {
-      padding: 5px 10px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
+
+    .no-data { 
+      color: var(--text-light); 
+      font-style: italic; 
+      text-align: center;
+      padding: 20px;
     }
-    button:hover {
-      background: #45a049;
+
+    .loading {
+      color: var(--text-light);
+      font-style: italic;
+      text-align: center;
+      padding: 20px;
     }
+
+    .table-container {
+      overflow-x: auto;
+      margin-top: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1px;
+    }
+
     .summary-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 20px;
     }
-    .summary-table th, .summary-table td {
-      padding: 8px;
-      text-align: left;
-      border: 1px solid #ccc;
-    }
-    .summary-table th {
-      background: #f0f0f0;
-    }
+
     select {
-      padding: 5px;
-      min-width: 200px;
-    }
-    .loading {
-      color: #666;
-      font-style: italic;
+      width: 100%;
+      max-width: 400px;
     }
   </style>
 </head>
 <body>
+  <div id="logo-container">
+    <img id="logo" src="https://raw.githubusercontent.com/gmcglynn88/TimeoffApp/main/IPI_Primary%20Identity_Corporate_REVERSED_ECC.png" alt="Company Logo">
+  </div>
+
   <h1>Intraday Weekly Plan</h1>
 
-  <!-- Business Unit Dropdown -->
-  <div class="container">
-    <label for="businessUnitSelect">Select Business Unit:</label>
-    <select id="businessUnitSelect" disabled>
-      <option value="">-- Loading Business Units --</option>
-    </select>
+  <div id="authCard" class="card">
+    <div id="auth-message" class="info-message">Authenticating with PureCloud...</div>
   </div>
 
-  <!-- Planning Group Dropdown -->
-  <div class="container">
-    <label for="planningGroup">Select Planning Group:</label>
-    <select id="planningGroup" disabled>
-      <option value="">-- Select Business Unit First --</option>
-    </select>
-  </div>
+  <div id="appContent" style="display:none;">
+    <div id="messageContainer"></div>
 
-  <!-- Week Selection Dropdown -->
-  <div class="container">
-    <label for="weekSelect">Select Week:</label>
-    <select id="weekSelect" disabled>
-      <option value="">-- Loading Weeks --</option>
-    </select>
-  </div>
-
-  <!-- Media Type Dropdown -->
-  <div class="container">
-    <label for="mediaType">Media Type:</label>
-    <select id="mediaType">
-      <option value="">--All--</option>
-      <option value="Voice">Voice</option>
-      <option value="Message">Message</option>
-    </select>
-  </div>
-
-  <!-- Tab Navigation -->
-  <div class="container">
-    <div id="tabs">
-      <div id="dailyTabButton" class="tab active">Daily Data</div>
-      <div id="intervalTabButton" class="tab">15-min Intervals</div>
+    <div class="card">
+      <h2 class="section-title">Configuration</h2>
+      <div class="controls">
+        <div>
+          <label for="businessUnitSelect">Select Business Unit:</label>
+          <select id="businessUnitSelect" disabled>
+            <option value="">-- Loading Business Units --</option>
+          </select>
+        </div>
+        <div>
+          <label for="planningGroup">Select Planning Group:</label>
+          <select id="planningGroup" disabled>
+            <option value="">-- Select Business Unit First --</option>
+          </select>
+        </div>
+        <div>
+          <label for="weekSelect">Select Week:</label>
+          <select id="weekSelect" disabled>
+            <option value="">-- Loading Weeks --</option>
+          </select>
+        </div>
+        <div>
+          <label for="mediaType">Media Type:</label>
+          <select id="mediaType">
+            <option value="">--All--</option>
+            <option value="Voice">Voice</option>
+            <option value="Message">Message</option>
+          </select>
+        </div>
+      </div>
     </div>
-    <div id="dailyTab" class="tab-content active">
-      <h2>Daily Data</h2>
-      <div id="weeklySummary" class="loading">Select a week to view data</div>
-      <div id="dailyTableContainer"></div>
-    </div>
-    <div id="intervalTab" class="tab-content">
-      <h2>15-min Interval Data</h2>
-      <div id="intervalTableContainer" class="loading">Select a day to view interval data</div>
+
+    <!-- Tab Navigation -->
+    <div class="card">
+      <div style="margin-bottom: 20px;">
+        <div id="tabs">
+          <div id="dailyTabButton" class="tab active">Daily Data</div>
+          <div id="intervalTabButton" class="tab">15-min Intervals</div>
+        </div>
+      </div>
+      
+      <div id="dailyTab" class="tab-content active">
+        <h2 class="section-title">Daily Data</h2>
+        <div id="weeklySummary" class="loading">Select a week to view data</div>
+        <div id="dailyTableContainer"></div>
+      </div>
+      
+      <div id="intervalTab" class="tab-content">
+        <h2 class="section-title">15-min Interval Data</h2>
+        <div id="intervalTableContainer" class="loading">Select a day to view interval data</div>
+      </div>
     </div>
   </div>
 
   <script>
-    // Simple configuration
+    // ===== OAuth Config =====
+    const clientId = 'd4529142-7340-4cd8-a9f9-f3a4d25670df';
+    
+    // Use the EXACT URI that's registered in Genesys Cloud
+    const redirectUri = 'https://gmcglynn88.github.io/Intraday-Weekly-Plan/';
+    
+    const oauthUrl = `https://login.mypurecloud.ie/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+    // Debug logging
+    console.log('OAuth Configuration:');
+    console.log('- Client ID:', clientId);
+    console.log('- Redirect URI:', redirectUri);
+    console.log('- Encoded Redirect URI:', encodeURIComponent(redirectUri));
+    console.log('- Full OAuth URL:', oauthUrl);
+
+    // Configuration
     const config = {
-      timeFormat: 'seconds', // 'seconds' or 'hms'
-      precision: 1,          // decimal places
-      CLIENT_ID: '256876c6-470d-4304-8e7d-2038f8a55d95',
+      timeFormat: 'seconds',
+      precision: 1,
       REGION: 'mypurecloud.ie'
     };
 
@@ -131,25 +214,56 @@
       weekData: []
     };
 
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', function() {
-      // First check for access token in URL hash
-      const hashParams = window.location.hash.substring(1).split('&').reduce(function(result, item) {
-        const parts = item.split('=');
-        result[parts[0]] = parts[1];
-        return result;
-      }, {});
+    // ===== Auth bootstrap =====
+    document.addEventListener('DOMContentLoaded', () => {
+      // Parse OAuth error from the URL
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const qparams = new URLSearchParams(window.location.search);
 
-      if (hashParams.access_token) {
-        state.accessToken = hashParams.access_token;
-        window.history.replaceState({}, document.title, window.location.pathname);
-        initializeApp();
+      const oauthError = params.get('error') || qparams.get('error');
+      const oauthErrorDesc = params.get('error_description') || qparams.get('error_description');
+
+      if (oauthError) {
+        document.getElementById('auth-message').textContent = `OAuth error: ${oauthErrorDesc || oauthError}`;
+        document.getElementById('auth-message').className = 'error-message';
+        console.error('OAuth error details:', { error: oauthError, description: oauthErrorDesc });
+        return;
+      }
+
+      state.accessToken = params.get('access_token');
+
+      if (state.accessToken) {
+        sessionStorage.setItem('purecloud_token', state.accessToken);
+        // Clean URL after successful auth
+        window.location.hash = '';
+        initializeApplication();
+      } else if (sessionStorage.getItem('purecloud_token')) {
+        state.accessToken = sessionStorage.getItem('purecloud_token');
+        initializeApplication();
       } else {
-        // Redirect to auth if no token
-        const redirectUri = encodeURIComponent(window.location.href.split('?')[0].split('#')[0]);
-        window.location.href = `https://login.${config.REGION}/oauth/authorize?response_type=token&client_id=${config.CLIENT_ID}&redirect_uri=${redirectUri}`;
+        console.log('Initiating OAuth flow with:', { clientId, redirectUri });
+        window.location.href = oauthUrl;
       }
     });
+
+    function showMessage(msg, type='error'){
+      const box = document.getElementById('messageContainer');
+      box.innerHTML = `<div class="${type}-message">${msg}</div>`;
+      box.style.display = 'block';
+      if (type === 'success') setTimeout(()=> box.style.display='none', 5000);
+    }
+
+    function initializeApplication() {
+      document.getElementById('auth-message').textContent = 'Authenticated successfully!';
+      document.getElementById('auth-message').className = 'success-message';
+      setTimeout(() => { 
+        document.getElementById('authCard').style.display = 'none'; 
+      }, 2000);
+
+      document.getElementById('appContent').style.display = 'block';
+      initializeApp();
+    }
 
     function initializeApp() {
       // Set up event listeners
@@ -336,6 +450,7 @@
         select.disabled = false;
       } catch (error) {
         console.error('Error fetching business units:', error);
+        showMessage('Error loading business units: ' + error.message, 'error');
         document.getElementById('businessUnitSelect').innerHTML = '<option value="">-- Error loading business units --</option>';
       }
     }
@@ -364,6 +479,7 @@
         select.disabled = false;
       } catch (error) {
         console.error('Error fetching planning groups:', error);
+        showMessage('Error loading planning groups: ' + error.message, 'error');
         document.getElementById('planningGroup').innerHTML = '<option value="">-- Error loading groups --</option>';
       }
     }
@@ -437,23 +553,24 @@
     function renderDailyTable() {
       const mediaTypeFilter = document.getElementById('mediaType').value;
       let tableHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Day</th>
-              <th>Planning Group</th>
-              <th>Media Type</th>
-              <th>Forecast Offered</th>
-              <th>Forecast AHT</th>
-              <th>Scheduled Time</th>
-              <th>Service Level</th>
-              <th>ASA</th>
-              <th>Occupancy</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Planning Group</th>
+                <th>Media Type</th>
+                <th>Forecast Offered</th>
+                <th>Forecast AHT</th>
+                <th>Scheduled Time</th>
+                <th>Service Level</th>
+                <th>ASA</th>
+                <th>Occupancy</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
       `;
 
       const weeklyTotals = {
@@ -529,54 +646,57 @@
 
       // Create weekly summary
       const summaryHTML = `
-        <table class="summary-table">
-          <thead>
-            <tr>
-              <th>Summary</th>
-              <th>Forecast Offered</th>
-              <th>Avg AHT</th>
-              <th>Total Scheduled</th>
-              <th>Avg SL</th>
-              <th>Avg ASA</th>
-              <th>Avg Occupancy</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Weekly Totals/Averages</td>
-              <td>${Math.round(weeklyTotals.offered)}</td>
-              <td>${formatTime(weeklyAvgAHT)}</td>
-              <td>${formatHours(weeklyTotals.scheduledTime)}</td>
-              <td>${formatNumber(weeklyAvgSL)}%</td>
-              <td>${formatTime(weeklyAvgASA)}</td>
-              <td>${formatNumber(weeklyAvgOccupancy)}%</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-container">
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Summary</th>
+                <th>Forecast Offered</th>
+                <th>Avg AHT</th>
+                <th>Total Scheduled</th>
+                <th>Avg SL</th>
+                <th>Avg ASA</th>
+                <th>Avg Occupancy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Weekly Totals/Averages</td>
+                <td>${Math.round(weeklyTotals.offered)}</td>
+                <td>${formatTime(weeklyAvgAHT)}</td>
+                <td>${formatHours(weeklyTotals.scheduledTime)}</td>
+                <td>${formatNumber(weeklyAvgSL)}%</td>
+                <td>${formatTime(weeklyAvgASA)}</td>
+                <td>${formatNumber(weeklyAvgOccupancy)}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       `;
 
       document.getElementById('weeklySummary').innerHTML = summaryHTML;
       document.getElementById('weeklySummary').className = '';
-      tableHTML += '</tbody></table>';
+      tableHTML += '</tbody></table></div>';
       document.getElementById('dailyTableContainer').innerHTML = tableHTML;
     }
 
     function render15MinTable(day, mediaType) {
       let tableHTML = `<h3>15-min Intervals for ${day.uk} (${mediaType})</h3>`;
       tableHTML += `
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Forecast Offered</th>
-              <th>Forecast AHT</th>
-              <th>Scheduled Time</th>
-              <th>Service Level</th>
-              <th>ASA</th>
-              <th>Occupancy</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Forecast Offered</th>
+                <th>Forecast AHT</th>
+                <th>Scheduled Time</th>
+                <th>Service Level</th>
+                <th>ASA</th>
+                <th>Occupancy</th>
+              </tr>
+            </thead>
+            <tbody>
       `;
       
       if (day.data?.result?.intradayDataGroupings) {
@@ -620,7 +740,7 @@
         tableHTML += '<tr><td colspan="7" class="no-data">No data available</td></tr>';
       }
       
-      tableHTML += '</tbody></table>';
+      tableHTML += '</tbody></table></div>';
       document.getElementById('intervalTableContainer').innerHTML = tableHTML;
       document.getElementById('intervalTableContainer').className = '';
     }
