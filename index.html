@@ -163,6 +163,93 @@
       weekData: []
     };
 
+    // ===== Utility Functions =====
+    
+    // Generic paginated fetch function
+    async function fetchPaginatedData(url, options = {}) {
+      let allEntities = [];
+      let pageNumber = 1;
+      let nextUrl = url;
+      
+      try {
+        while (nextUrl) {
+          const response = await fetch(nextUrl, {
+            headers: {
+              'Authorization': 'Bearer ' + state.accessToken,
+              ...options.headers
+            },
+            ...options
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          // Handle different pagination structures
+          if (data.entities) {
+            allEntities = allEntities.concat(data.entities);
+          } else if (data.results) {
+            allEntities = allEntities.concat(data.results);
+          } else {
+            // If no clear entities array, return the data as-is
+            return data;
+          }
+          
+          // Check for next page
+          if (data.nextUri) {
+            nextUrl = `https://api.${config.REGION}${data.nextUri}`;
+          } else if (data.cursor && data.cursor !== '') {
+            // Some APIs use cursor-based pagination
+            nextUrl = `${url}?cursor=${encodeURIComponent(data.cursor)}`;
+          } else {
+            nextUrl = null;
+          }
+          
+          pageNumber++;
+          
+          if (DEBUG) {
+            console.log(`Fetched page ${pageNumber - 1}, total records: ${allEntities.length}`);
+          }
+        }
+        
+        return allEntities;
+      } catch (error) {
+        console.error('Error in paginated fetch:', error);
+        throw error;
+      }
+    }
+
+    // Data validation helper
+    function validateIntradayData(data) {
+      if (!data || !data.result) {
+        return { isValid: false, error: 'No result in response' };
+      }
+      
+      const groupings = data.result.intradayDataGroupings;
+      if (!Array.isArray(groupings)) {
+        return { isValid: false, error: 'No intradayDataGroupings array found' };
+      }
+      
+      if (groupings.length === 0) {
+        return { isValid: false, error: 'Empty intradayDataGroupings array' };
+      }
+      
+      // Check if we have any actual data
+      const hasData = groupings.some(group => 
+        group.forecastDataSummary || 
+        group.scheduleDataSummary || 
+        group.performancePredictionDataSummary
+      );
+      
+      if (!hasData) {
+        return { isValid: false, error: 'No summary data found in groupings' };
+      }
+      
+      return { isValid: true, groupings };
+    }
+
     // ===== Auth bootstrap =====
     document.addEventListener('DOMContentLoaded', () => {
       console.log('OAuth Configuration:', { clientId, redirectUri, oauthUrl, region: config.REGION });
@@ -233,11 +320,23 @@
       document.getElementById('auth-message').className = 'info-message';
     }
 
-    function showMessage(msg, type='error'){
+    function showMessage(msg, type = 'error', details = '') {
       const box = document.getElementById('messageContainer');
-      box.innerHTML = `<div class="${type}-message">${msg}</div>`;
+      let messageHTML = `<div class="${type}-message">${msg}</div>`;
+      
+      if (details && DEBUG) {
+        messageHTML += `<div class="info-message" style="margin-top: 8px;">
+          <strong>Details:</strong><br>
+          <pre style="font-size: 11px; overflow: auto;">${JSON.stringify(details, null, 2)}</pre>
+        </div>`;
+      }
+      
+      box.innerHTML = messageHTML;
       box.style.display = 'block';
-      if (type === 'success') setTimeout(()=> box.style.display='none', 5000);
+      
+      if (type === 'success') {
+        setTimeout(() => box.style.display = 'none', 5000);
+      }
     }
 
     function initializeApplication() {
@@ -391,20 +490,25 @@
     // Data fetching functions
     async function fetchBusinessUnits() {
       try {
-        const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits`, {
-          headers: { 'Authorization': 'Bearer ' + state.accessToken }
-        });
-        if (!response.ok) throw new Error('Failed to fetch business units');
-        const data = await response.json();
+        const businessUnits = await fetchPaginatedData(
+          `https://api.${config.REGION}/api/v2/workforcemanagement/businessunits?pageSize=100`
+        );
+        
         const select = document.getElementById('businessUnitSelect');
         select.innerHTML = '<option value="">-- Select Business Unit --</option>';
-        (data.entities || []).forEach(bu => {
+        
+        businessUnits.forEach(bu => {
           const option = document.createElement('option');
           option.value = bu.id;
           option.textContent = bu.name;
           select.appendChild(option);
         });
+        
         select.disabled = false;
+        
+        if (DEBUG) {
+          console.log('Loaded business units:', businessUnits.length);
+        }
       } catch (error) {
         console.error('Error fetching business units:', error);
         showMessage('Error loading business units: ' + error.message, 'error');
@@ -414,20 +518,25 @@
 
     async function fetchPlanningGroups(businessUnitId) {
       try {
-        const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups`, {
-          headers: { 'Authorization': 'Bearer ' + state.accessToken }
-        });
-        if (!response.ok) throw new Error('Failed to fetch planning groups');
-        const data = await response.json();
+        const planningGroups = await fetchPaginatedData(
+          `https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups?pageSize=100`
+        );
+        
         const select = document.getElementById('planningGroup');
         select.innerHTML = '<option value="">-- Select Planning Group --</option>';
-        (data.entities || []).forEach(pg => {
+        
+        planningGroups.forEach(pg => {
           const option = document.createElement('option');
           option.value = pg.id;
           option.textContent = pg.name;
           select.appendChild(option);
         });
+        
         select.disabled = false;
+        
+        if (DEBUG) {
+          console.log('Loaded planning groups:', planningGroups.length);
+        }
       } catch (error) {
         console.error('Error fetching planning groups:', error);
         showMessage('Error loading planning groups: ' + error.message, 'error');
@@ -438,9 +547,11 @@
     async function fetchIntradayData(date) {
       const businessUnitId = document.getElementById('businessUnitSelect').value;
       const planningGroupId = document.getElementById('planningGroup').value;
+      
       if (!businessUnitId) {
         return { date: date, data: null, error: 'No business unit selected' };
       }
+      
       try {
         const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`, {
           method: 'POST',
@@ -455,13 +566,45 @@
             planningGroupIds: planningGroupId ? [planningGroupId] : null
           })
         });
+        
         if (!response.ok) {
           if (response.status === 404) {
             return { date: date, data: null, error: 'No data available for this date' };
           }
-          throw new Error(`HTTP error! status: ${response.status}`);
+          
+          // Try to get more error details
+          const errorText = await response.text();
+          let errorDetails = `HTTP error! status: ${response.status}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorDetails += ` - ${errorJson.message || errorText}`;
+          } catch {
+            errorDetails += ` - ${errorText}`;
+          }
+          throw new Error(errorDetails);
         }
+        
         const data = await response.json();
+        
+        // ADD COMPREHENSIVE DEBUG LOGGING
+        if (DEBUG) {
+          console.log(`=== INTRADAY DATA FOR ${date} ===`, data);
+          if (data.result?.intradayDataGroupings) {
+            console.log('Data groupings found:', data.result.intradayDataGroupings.length);
+            data.result.intradayDataGroupings.forEach((group, index) => {
+              console.log(`Group ${index + 1}:`, {
+                mediaType: group.mediaType,
+                forecastSummary: group.forecastDataSummary,
+                scheduleSummary: group.scheduleDataSummary,
+                performanceSummary: group.performancePredictionDataSummary,
+                forecastIntervals: group.forecastDataPerInterval?.length || 0,
+                scheduleIntervals: group.scheduleDataPerInterval?.length || 0,
+                performanceIntervals: group.performancePredictionDataPerInterval?.length || 0
+              });
+            });
+          }
+        }
+        
         return { date: date, data: data };
       } catch (error) {
         console.error('Error fetching intraday data:', error);
@@ -478,9 +621,29 @@
       renderAllData();
     }
 
+    // Debug inspection function
+    function addDebugInspection() {
+      const debugButton = document.createElement('button');
+      debugButton.textContent = 'Inspect Raw Data';
+      debugButton.style.margin = '10px 0';
+      debugButton.onclick = function() {
+        console.log('Full week data:', state.weekData);
+        alert('Raw data logged to console. Check browser developer tools.');
+      };
+      
+      const weeklySummary = document.getElementById('weeklySummary');
+      weeklySummary.parentNode.insertBefore(debugButton, weeklySummary);
+    }
+
     // Rendering functions
     function renderAllData() {
       renderDailyTable();
+      
+      // Add debug inspection
+      if (DEBUG) {
+        addDebugInspection();
+      }
+      
       if (document.getElementById('intervalTab').classList.contains('active')) {
         const intervalTitle = document.querySelector('#intervalTableContainer h3');
         if (intervalTitle) {
@@ -519,27 +682,50 @@
       const weeklyTotals = { offered: 0, aht: 0, scheduledTime: 0, serviceLevel: 0, asa: 0, occupancy: 0, count: 0 };
 
       state.weekData.forEach(day => {
-        if (!day.data || !day.data.result) {
+        // Use the validation helper
+        const validation = validateIntradayData(day.data);
+        
+        if (!validation.isValid) {
           const dayOfWeek = getDayOfWeek(day.uk);
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="9" class="no-data">${day.error || 'No data available'}</td>
+              <td colspan="9" class="no-data">${day.error || validation.error}</td>
             </tr>
           `;
           return;
         }
 
-        day.data.result.intradayDataGroupings.forEach(group => {
+        // Now process the validated groupings
+        validation.groupings.forEach(group => {
+          // VALIDATE GROUP STRUCTURE
+          if (!group || !group.mediaType) {
+            console.warn('Invalid group structure:', group);
+            return;
+          }
+          
           if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
 
+          // SAFELY ACCESS NESTED PROPERTIES
           const offered = group.forecastDataSummary?.offered || 0;
           const aht = group.forecastDataSummary?.averageHandleTimeSeconds || 0;
           const scheduledTime = group.scheduleDataSummary?.onQueueTimeSeconds || 0;
           const serviceLevel = group.performancePredictionDataSummary?.serviceLevelPercent || 0;
           const asa = group.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || 0;
           const occupancy = group.performancePredictionDataSummary?.occupancyPercent || 0;
+
+          // DEBUG: Log actual values vs displayed values
+          if (DEBUG) {
+            console.log(`Day: ${day.uk}, Media: ${group.mediaType}`, {
+              offered,
+              aht,
+              scheduledTime,
+              serviceLevel,
+              asa,
+              occupancy
+            });
+          }
 
           weeklyTotals.offered += offered;
           weeklyTotals.aht += aht;
