@@ -44,6 +44,7 @@
     .weekly-totals-row td { border-bottom: 2px solid var(--primary-color); }
     .actual-better { color: #14532d; font-weight: 600; }
     .forecast-better { color: #b45309; font-weight: 600; }
+    .future-date { background-color: rgba(248, 249, 250, 0.5); }
 
     /* Tab Styling */
     .tab { display: inline-block; padding: 12px 20px; margin-right: 10px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: 500; }
@@ -661,6 +662,24 @@
       return dates;
     }
 
+    function isFutureDate(dateStr) {
+      try {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          const date = new Date(year, month, day);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return date > today;
+        }
+      } catch (e) {
+        console.error('Error parsing date:', dateStr, e);
+      }
+      return false;
+    }
+
     // Data fetching functions
     async function fetchBusinessUnits() {
       try {
@@ -730,7 +749,7 @@
       try {
         console.log(`🔍 Fetching intraday data for ${date}...`);
         
-        // Use only the valid categories
+        // Use only the valid categories - NO HistoricalData
         const requestBody = {
           businessUnitDate: date, // Format: yyyy-MM-dd
           categories: ["ForecastData", "ScheduleData", "PerformancePredictionData"],
@@ -911,11 +930,15 @@
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
 
-          // For actual data, we'll use performance prediction data as the closest approximation
-          // In a real implementation, you would need to fetch historical data from a different endpoint
-          const offeredActual = performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
-          const ahtActual = performanceSummary.averageHandleTimeSeconds || ahtForecast;
-          const slActual = performanceSummary.serviceLevelPercent || 0;
+          // Determine if this is a future date
+          const isFuture = isFutureDate(day.uk);
+          
+          // For actual data: 
+          // - Future dates: show prediction data as "actual" 
+          // - Historical dates: show performance data as "actual"
+          const offeredActual = isFuture ? offeredForecast : (performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast);
+          const ahtActual = isFuture ? ahtForecast : (performanceSummary.averageHandleTimeSeconds || ahtForecast);
+          const slActual = isFuture ? slPredicted : (performanceSummary.serviceLevelPercent || 0);
 
           weeklyTotals.offeredForecast += offeredForecast;
           weeklyTotals.offeredActual += offeredActual;
@@ -987,20 +1010,27 @@
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
 
-          // For actual data, use performance prediction data as approximation
-          const offeredActual = performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
-          const ahtActual = performanceSummary.averageHandleTimeSeconds || ahtForecast;
-          const slActual = performanceSummary.serviceLevelPercent || 0;
+          // Determine if this is a future date
+          const isFuture = isFutureDate(day.uk);
+          
+          // For actual data:
+          // - Future dates: show prediction data as "actual"
+          // - Historical dates: show performance data as "actual"
+          const offeredActual = isFuture ? offeredForecast : (performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast);
+          const ahtActual = isFuture ? ahtForecast : (performanceSummary.averageHandleTimeSeconds || ahtForecast);
+          const slActual = isFuture ? slPredicted : (performanceSummary.serviceLevelPercent || 0);
 
           const dayOfWeek = getDayOfWeek(day.uk);
           
-          // Determine if actual is better than forecast for styling
-          const offeredClass = offeredActual > offeredForecast ? 'actual-better' : (offeredActual < offeredForecast ? 'forecast-better' : '');
-          const ahtClass = ahtActual < ahtForecast ? 'actual-better' : (ahtActual > ahtForecast ? 'forecast-better' : '');
-          const slClass = slActual > slPredicted ? 'actual-better' : (slActual < slPredicted ? 'forecast-better' : '');
+          // Determine if actual is better than forecast for styling (only for historical dates)
+          const offeredClass = !isFuture && offeredActual > offeredForecast ? 'actual-better' : (!isFuture && offeredActual < offeredForecast ? 'forecast-better' : '');
+          const ahtClass = !isFuture && ahtActual < ahtForecast ? 'actual-better' : (!isFuture && ahtActual > ahtForecast ? 'forecast-better' : '');
+          const slClass = !isFuture && slActual > slPredicted ? 'actual-better' : (!isFuture && slActual < slPredicted ? 'forecast-better' : '');
+          
+          const rowClass = isFuture ? 'future-date' : '';
           
           tableHTML += `
-            <tr>
+            <tr class="${rowClass}">
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
