@@ -42,6 +42,8 @@
     .consolidated-table th.sub-header { background-color: rgba(99, 171, 143, 0.8); }
     .weekly-totals-row { background-color: rgba(99, 171, 143, 0.1); font-weight: 600; }
     .weekly-totals-row td { border-bottom: 2px solid var(--primary-color); }
+    .actual-better { color: #14532d; font-weight: 600; }
+    .forecast-better { color: #b45309; font-weight: 600; }
 
     /* Tab Styling */
     .tab { display: inline-block; padding: 12px 20px; margin-right: 10px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: 500; }
@@ -590,7 +592,7 @@
 
     // Helper functions
     function formatTime(seconds) {
-      if (!seconds) return '-';
+      if (!seconds || seconds === 0) return '-';
       seconds = Math.round(seconds);
       if (config.timeFormat === 'hms') {
         const h = Math.floor(seconds / 3600);
@@ -603,7 +605,7 @@
     }
 
     function formatHours(seconds) {
-      if (!seconds) return '-';
+      if (!seconds || seconds === 0) return '-';
       return (seconds / 3600).toFixed(config.precision) + 'h';
     }
 
@@ -728,10 +730,10 @@
       try {
         console.log(`🔍 Fetching intraday data for ${date}...`);
         
-        // Prepare the request body exactly as specified
+        // Modified request body to try to get historical data
         const requestBody = {
           businessUnitDate: date, // Format: yyyy-MM-dd
-          categories: ["ForecastData", "ScheduleData", "PerformancePredictionData"],
+          categories: ["ForecastData", "ScheduleData", "PerformancePredictionData", "HistoricalData"],
           intervalLengthMinutes: 15
         };
         
@@ -774,7 +776,7 @@
         
         const data = await response.json();
         
-        // COMPREHENSIVE DEBUG LOGGING
+        // Enhanced debug logging to see what data we're getting
         if (DEBUG) {
           console.log(`📊 FULL API RESPONSE for ${date}:`, data);
           
@@ -785,7 +787,9 @@
               console.log(`\n🎯 Group ${index + 1} (${group.mediaType}):`, {
                 forecastSummary: group.forecastDataSummary,
                 scheduleSummary: group.scheduleDataSummary,
-                performanceSummary: group.performancePredictionDataSummary
+                performanceSummary: group.performancePredictionDataSummary,
+                historicalSummary: group.historicalDataSummary,
+                availableCategories: Object.keys(group)
               });
             });
           }
@@ -888,7 +892,7 @@
         count: 0
       };
 
-      // Add weekly totals row
+      // First pass: calculate totals
       state.weekData.forEach(day => {
         if (!day.data || !day.data.result) return;
         
@@ -901,27 +905,44 @@
 
           const forecastSummary = group.forecastDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
+          const scheduleSummary = group.scheduleDataSummary || {};
+          const historicalSummary = group.historicalDataSummary || {};
 
-          weeklyTotals.offeredForecast += forecastSummary.offered || 0;
-          weeklyTotals.offeredActual += forecastSummary.offered || 0; // Placeholder - replace with actual data
-          weeklyTotals.ahtForecast += forecastSummary.averageHandleTimeSeconds || 0;
-          weeklyTotals.ahtActual += forecastSummary.averageHandleTimeSeconds || 0; // Placeholder - replace with actual data
-          weeklyTotals.slPredicted += performanceSummary.serviceLevelPercent || 0;
-          weeklyTotals.slActual += performanceSummary.serviceLevelPercent || 0; // Placeholder - replace with actual data
+          // Forecast data
+          const offeredForecast = forecastSummary.offered || 0;
+          const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
+          const slPredicted = performanceSummary.serviceLevelPercent || 0;
+
+          // Actual data - prioritize historical data, then performance data
+          const offeredActual = historicalSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
+          const ahtActual = historicalSummary.averageHandleTimeSeconds || performanceSummary.averageHandleTimeSeconds || ahtForecast;
+          const slActual = historicalSummary.serviceLevelPercent || performanceSummary.serviceLevelPercent || 0;
+
+          weeklyTotals.offeredForecast += offeredForecast;
+          weeklyTotals.offeredActual += offeredActual;
+          weeklyTotals.ahtForecast += ahtForecast;
+          weeklyTotals.ahtActual += ahtActual;
+          weeklyTotals.slPredicted += slPredicted;
+          weeklyTotals.slActual += slActual;
           weeklyTotals.count++;
         });
       });
 
       // Add weekly totals row
+      const avgAHTForecast = weeklyTotals.count ? weeklyTotals.ahtForecast / weeklyTotals.count : 0;
+      const avgAHTActual = weeklyTotals.count ? weeklyTotals.ahtActual / weeklyTotals.count : 0;
+      const avgSLPredicted = weeklyTotals.count ? weeklyTotals.slPredicted / weeklyTotals.count : 0;
+      const avgSLActual = weeklyTotals.count ? weeklyTotals.slActual / weeklyTotals.count : 0;
+
       tableHTML += `
         <tr class="weekly-totals-row">
           <td colspan="3"><strong>Week Totals</strong></td>
           <td><strong>${Math.round(weeklyTotals.offeredForecast)}</strong></td>
           <td><strong>${Math.round(weeklyTotals.offeredActual)}</strong></td>
-          <td><strong>${formatTime(weeklyTotals.ahtForecast)}</strong></td>
-          <td><strong>${formatTime(weeklyTotals.ahtActual)}</strong></td>
-          <td><strong>${formatPercentage(weeklyTotals.slPredicted)}</strong></td>
-          <td><strong>${formatPercentage(weeklyTotals.slActual)}</strong></td>
+          <td><strong>${formatTime(avgAHTForecast)}</strong></td>
+          <td><strong>${formatTime(avgAHTActual)}</strong></td>
+          <td><strong>${formatPercentage(avgSLPredicted)}</strong></td>
+          <td><strong>${formatPercentage(avgSLActual)}</strong></td>
           <td></td>
         </tr>
       `;
@@ -960,26 +981,37 @@
 
           const forecastSummary = group.forecastDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
+          const scheduleSummary = group.scheduleDataSummary || {};
+          const historicalSummary = group.historicalDataSummary || {};
 
+          // Forecast data
           const offeredForecast = forecastSummary.offered || 0;
-          const offeredActual = offeredForecast; // Placeholder - replace with actual data
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
-          const ahtActual = ahtForecast; // Placeholder - replace with actual data
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
-          const slActual = slPredicted; // Placeholder - replace with actual data
+
+          // Actual data - prioritize historical data, then performance data
+          const offeredActual = historicalSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast;
+          const ahtActual = historicalSummary.averageHandleTimeSeconds || performanceSummary.averageHandleTimeSeconds || ahtForecast;
+          const slActual = historicalSummary.serviceLevelPercent || performanceSummary.serviceLevelPercent || 0;
 
           const dayOfWeek = getDayOfWeek(day.uk);
+          
+          // Determine if actual is better than forecast for styling
+          const offeredClass = offeredActual > offeredForecast ? 'actual-better' : (offeredActual < offeredForecast ? 'forecast-better' : '');
+          const ahtClass = ahtActual < ahtForecast ? 'actual-better' : (ahtActual > ahtForecast ? 'forecast-better' : '');
+          const slClass = slActual > slPredicted ? 'actual-better' : (slActual < slPredicted ? 'forecast-better' : '');
+          
           tableHTML += `
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
               <td>${Math.round(offeredForecast)}</td>
-              <td>${Math.round(offeredActual)}</td>
+              <td class="${offeredClass}">${Math.round(offeredActual)}</td>
               <td>${formatTime(ahtForecast)}</td>
-              <td>${formatTime(ahtActual)}</td>
+              <td class="${ahtClass}">${formatTime(ahtActual)}</td>
               <td>${formatPercentage(slPredicted)}</td>
-              <td>${formatPercentage(slActual)}</td>
+              <td class="${slClass}">${formatPercentage(slActual)}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
                   View Details
