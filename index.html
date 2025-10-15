@@ -42,9 +42,8 @@
     .consolidated-table th.sub-header { background-color: rgba(99, 171, 143, 0.8); }
     .weekly-totals-row { background-color: rgba(99, 171, 143, 0.1); font-weight: 600; }
     .weekly-totals-row td { border-bottom: 2px solid var(--primary-color); }
-    .actual-better { color: #14532d; font-weight: 600; }
-    .forecast-better { color: #b45309; font-weight: 600; }
     .future-date { background-color: rgba(248, 249, 250, 0.5); }
+    .no-actual-data { color: var(--text-light); font-style: italic; }
 
     /* Tab Styling */
     .tab { display: inline-block; padding: 12px 20px; margin-right: 10px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: 500; }
@@ -923,29 +922,30 @@
 
           const forecastSummary = group.forecastDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
-          const scheduleSummary = group.scheduleDataSummary || {};
 
-          // Forecast data
+          // Forecast data from forecastDataSummary
           const offeredForecast = forecastSummary.offered || 0;
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
+
+          // Prediction data from performancePredictionDataSummary
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
 
           // Determine if this is a future date
           const isFuture = isFutureDate(day.uk);
           
           // For actual data: 
-          // - Future dates: show prediction data as "actual" 
-          // - Historical dates: show performance data as "actual"
-          const offeredActual = isFuture ? offeredForecast : (performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast);
-          const ahtActual = isFuture ? ahtForecast : (performanceSummary.averageHandleTimeSeconds || ahtForecast);
-          const slActual = isFuture ? slPredicted : (performanceSummary.serviceLevelPercent || 0);
+          // - Future dates: show "N/A" since no actual data exists
+          // - Historical dates: We'll need to get actual data from a different API
+          const offeredActual = isFuture ? null : null; // Will be populated when we have actual API
+          const ahtActual = isFuture ? null : null; // Will be populated when we have actual API
+          const slActual = isFuture ? null : null; // Will be populated when we have actual API
 
           weeklyTotals.offeredForecast += offeredForecast;
-          weeklyTotals.offeredActual += offeredActual;
+          weeklyTotals.offeredActual += offeredActual || 0;
           weeklyTotals.ahtForecast += ahtForecast;
-          weeklyTotals.ahtActual += ahtActual;
+          weeklyTotals.ahtActual += ahtActual || 0;
           weeklyTotals.slPredicted += slPredicted;
-          weeklyTotals.slActual += slActual;
+          weeklyTotals.slActual += slActual || 0;
           weeklyTotals.count++;
         });
       });
@@ -960,11 +960,11 @@
         <tr class="weekly-totals-row">
           <td colspan="3"><strong>Week Totals</strong></td>
           <td><strong>${Math.round(weeklyTotals.offeredForecast)}</strong></td>
-          <td><strong>${Math.round(weeklyTotals.offeredActual)}</strong></td>
+          <td><strong>${weeklyTotals.offeredActual > 0 ? Math.round(weeklyTotals.offeredActual) : 'N/A'}</strong></td>
           <td><strong>${formatTime(avgAHTForecast)}</strong></td>
-          <td><strong>${formatTime(avgAHTActual)}</strong></td>
+          <td><strong>${avgAHTActual > 0 ? formatTime(avgAHTActual) : 'N/A'}</strong></td>
           <td><strong>${formatPercentage(avgSLPredicted)}</strong></td>
-          <td><strong>${formatPercentage(avgSLActual)}</strong></td>
+          <td><strong>${avgSLActual > 0 ? formatPercentage(avgSLActual) : 'N/A'}</strong></td>
           <td></td>
         </tr>
       `;
@@ -1003,31 +1003,28 @@
 
           const forecastSummary = group.forecastDataSummary || {};
           const performanceSummary = group.performancePredictionDataSummary || {};
-          const scheduleSummary = group.scheduleDataSummary || {};
 
-          // Forecast data
+          // Forecast data from forecastDataSummary
           const offeredForecast = forecastSummary.offered || 0;
           const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
+
+          // Prediction data from performancePredictionDataSummary
           const slPredicted = performanceSummary.serviceLevelPercent || 0;
 
           // Determine if this is a future date
           const isFuture = isFutureDate(day.uk);
           
-          // For actual data:
-          // - Future dates: show prediction data as "actual"
-          // - Historical dates: show performance data as "actual"
-          const offeredActual = isFuture ? offeredForecast : (performanceSummary.offered || scheduleSummary.scheduledInteractions || offeredForecast);
-          const ahtActual = isFuture ? ahtForecast : (performanceSummary.averageHandleTimeSeconds || ahtForecast);
-          const slActual = isFuture ? slPredicted : (performanceSummary.serviceLevelPercent || 0);
+          // For actual data: 
+          // - Future dates: show "N/A" since no actual data exists
+          // - Historical dates: We'll need to get actual data from a different API
+          const offeredActual = isFuture ? null : null; // Will be populated when we have actual API
+          const ahtActual = isFuture ? null : null; // Will be populated when we have actual API
+          const slActual = isFuture ? null : null; // Will be populated when we have actual API
 
           const dayOfWeek = getDayOfWeek(day.uk);
           
-          // Determine if actual is better than forecast for styling (only for historical dates)
-          const offeredClass = !isFuture && offeredActual > offeredForecast ? 'actual-better' : (!isFuture && offeredActual < offeredForecast ? 'forecast-better' : '');
-          const ahtClass = !isFuture && ahtActual < ahtForecast ? 'actual-better' : (!isFuture && ahtActual > ahtForecast ? 'forecast-better' : '');
-          const slClass = !isFuture && slActual > slPredicted ? 'actual-better' : (!isFuture && slActual < slPredicted ? 'forecast-better' : '');
-          
           const rowClass = isFuture ? 'future-date' : '';
+          const actualClass = isFuture ? 'no-actual-data' : '';
           
           tableHTML += `
             <tr class="${rowClass}">
@@ -1035,11 +1032,11 @@
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
               <td>${Math.round(offeredForecast)}</td>
-              <td class="${offeredClass}">${Math.round(offeredActual)}</td>
+              <td class="${actualClass}">${offeredActual !== null ? Math.round(offeredActual) : 'N/A'}</td>
               <td>${formatTime(ahtForecast)}</td>
-              <td class="${ahtClass}">${formatTime(ahtActual)}</td>
+              <td class="${actualClass}">${ahtActual !== null ? formatTime(ahtActual) : 'N/A'}</td>
               <td>${formatPercentage(slPredicted)}</td>
-              <td class="${slClass}">${formatPercentage(slActual)}</td>
+              <td class="${actualClass}">${slActual !== null ? formatPercentage(slActual) : 'N/A'}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
                   View Details
