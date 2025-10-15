@@ -43,7 +43,7 @@
     .weekly-totals-row { background-color: rgba(99, 171, 143, 0.1); font-weight: 600; }
     .weekly-totals-row td { border-bottom: 2px solid var(--primary-color); }
     .future-date { background-color: rgba(248, 249, 250, 0.5); }
-    .no-actual-data { color: var(--text-light); font-style: italic; }
+    .past-date { opacity: 0.7; }
 
     /* Tab Styling */
     .tab { display: inline-block; padding: 12px 20px; margin-right: 10px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: 500; }
@@ -102,7 +102,7 @@
     <img id="logo" src="https://raw.githubusercontent.com/gmcglynn88/Management-Unit-Search/main/Consultinglogo%20(2).png" alt="Company Logo">
   </div>
 
-  <h1>Intraday Weekly Plan</h1>
+  <h1>Intraday Weekly Plan - Forecast & Predictions</h1>
 
   <div id="authCard" class="card">
     <div id="auth-message" class="info-message">Authenticating with PureCloud...</div>
@@ -158,7 +158,7 @@
         </div>
         <div class="load-btn-container">
           <button id="loadDataBtn" class="full-width-btn" disabled>
-            Load Data
+            Load Forecast Data
           </button>
         </div>
       </div>
@@ -168,25 +168,25 @@
     <div class="card">
       <div style="margin-bottom: 20px;">
         <div id="tabs">
-          <div id="dailyTabButton" class="tab active">Daily Data</div>
+          <div id="dailyTabButton" class="tab active">Daily Forecast</div>
           <div id="intervalTabButton" class="tab">15-min Intervals</div>
         </div>
       </div>
       
       <div id="dailyTab" class="tab-content active">
-        <h2 class="section-title">Daily Data</h2>
-        <div id="weeklySummary" class="loading">Select a week and click "Load Data" to view data</div>
+        <h2 class="section-title">Daily Forecast Data</h2>
+        <div id="weeklySummary" class="loading">Select a week and click "Load Forecast Data" to view forecast and predictions</div>
         
         <!-- Consolidated Data Table -->
         <div class="metrics-section" id="consolidatedSection" style="display: none;">
-          <h3>📊 Weekly Performance Summary</h3>
+          <h3>📊 Weekly Forecast & Performance Predictions</h3>
           <div id="consolidatedTableContainer"></div>
         </div>
       </div>
       
       <div id="intervalTab" class="tab-content">
         <h2 class="section-title">15-min Interval Data</h2>
-        <div id="intervalTableContainer" class="loading">Select a day to view interval data</div>
+        <div id="intervalTableContainer" class="loading">Select a day to view interval forecast data</div>
       </div>
     </div>
   </div>
@@ -521,10 +521,10 @@
       // Load initial data
       fetchBusinessUnits();
       
-      // Set default week to current week
+      // Set default week to next week (focus on future)
       const today = new Date();
       const dayOfWeek = today.getDay();
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) + 7; // +7 for next week
       const monday = new Date(today.setDate(diff));
       selectWeek(monday);
     }
@@ -569,7 +569,7 @@
       const weekStart = state.selectedWeekStart;
       if (weekStart) {
         document.getElementById('weeklySummary').className = 'loading';
-        document.getElementById('weeklySummary').textContent = 'Loading data...';
+        document.getElementById('weeklySummary').textContent = 'Loading forecast data...';
         document.getElementById('loadDataBtn').disabled = true;
         document.getElementById('loadDataBtn').textContent = 'Loading...';
         
@@ -578,7 +578,7 @@
         
         fetchDataForWeek(weekStart).finally(() => {
           document.getElementById('loadDataBtn').disabled = false;
-          document.getElementById('loadDataBtn').textContent = 'Load Data';
+          document.getElementById('loadDataBtn').textContent = 'Load Forecast Data';
         });
       }
     }
@@ -746,21 +746,17 @@
       }
       
       try {
-        console.log(`🔍 Fetching intraday data for ${date}...`);
+        console.log(`🔍 Fetching forecast data for ${date}...`);
         
-        // Use only the valid categories - NO HistoricalData
         const requestBody = {
-          businessUnitDate: date, // Format: yyyy-MM-dd
+          businessUnitDate: date,
           categories: ["ForecastData", "ScheduleData", "PerformancePredictionData"],
           intervalLengthMinutes: 15
         };
         
-        // Only add planningGroupIds if one is selected
         if (planningGroupId) {
           requestBody.planningGroupIds = [planningGroupId];
         }
-        
-        console.log('📤 API Request Body:', JSON.stringify(requestBody, null, 2));
         
         const response = await fetch(`https://api.${config.REGION}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`, {
           method: 'POST',
@@ -771,11 +767,9 @@
           body: JSON.stringify(requestBody)
         });
         
-        console.log(`📥 API Response Status: ${response.status} ${response.statusText}`);
-        
         if (!response.ok) {
           if (response.status === 404) {
-            return { date: date, data: null, error: 'No data available for this date' };
+            return { date: date, data: null, error: 'No forecast data available for this date' };
           }
           
           const errorText = await response.text();
@@ -783,9 +777,6 @@
           try {
             const errorJson = JSON.parse(errorText);
             errorDetails += ` - ${errorJson.message || errorText}`;
-            if (errorJson.code) {
-              errorDetails += ` (Code: ${errorJson.code})`;
-            }
           } catch {
             errorDetails += ` - ${errorText}`;
           }
@@ -793,35 +784,16 @@
         }
         
         const data = await response.json();
-        
-        // Enhanced debug logging to see what data we're getting
-        if (DEBUG) {
-          console.log(`📊 FULL API RESPONSE for ${date}:`, data);
-          
-          if (data.result?.intradayDataGroupings) {
-            console.log(`🔢 Found ${data.result.intradayDataGroupings.length} data grouping(s)`);
-            
-            data.result.intradayDataGroupings.forEach((group, index) => {
-              console.log(`\n🎯 Group ${index + 1} (${group.mediaType}):`, {
-                forecastSummary: group.forecastDataSummary,
-                scheduleSummary: group.scheduleDataSummary,
-                performanceSummary: group.performancePredictionDataSummary,
-                availableCategories: Object.keys(group)
-              });
-            });
-          }
-        }
-        
         return { date: date, data: data };
       } catch (error) {
-        console.error('❌ Error fetching intraday data:', error);
+        console.error('❌ Error fetching forecast data:', error);
         return { date: date, data: null, error: error.message };
       }
     }
 
     async function fetchDataForWeek(startDate) {
       const dateObjs = getWeekDates(startDate);
-      showMessage(`Loading data for week starting ${dateObjs[0].uk}...`, 'info');
+      showMessage(`Loading forecast data for week starting ${dateObjs[0].uk}...`, 'info');
       
       const fetchPromises = dateObjs.map(dateObj => 
         fetchIntradayData(dateObj.raw).then(result => ({ ...result, uk: dateObj.uk }))
@@ -829,31 +801,12 @@
       
       state.weekData = await Promise.all(fetchPromises);
       renderAllData();
-      showMessage('Data loaded successfully!', 'success');
-    }
-
-    // Debug inspection function
-    function addDebugInspection() {
-      const debugButton = document.createElement('button');
-      debugButton.textContent = 'Inspect Raw Data';
-      debugButton.style.margin = '10px 0';
-      debugButton.onclick = function() {
-        console.log('Full week data:', state.weekData);
-        alert('Raw data logged to console. Check browser developer tools.');
-      };
-      
-      const weeklySummary = document.getElementById('weeklySummary');
-      weeklySummary.parentNode.insertBefore(debugButton, weeklySummary);
+      showMessage('Forecast data loaded successfully!', 'success');
     }
 
     // Rendering functions
     function renderAllData() {
       renderConsolidatedTable();
-      
-      // Add debug inspection
-      if (DEBUG) {
-        addDebugInspection();
-      }
       
       if (document.getElementById('intervalTab').classList.contains('active')) {
         const intervalTitle = document.querySelector('#intervalTableContainer h3');
@@ -870,7 +823,6 @@
     function renderConsolidatedTable() {
       const mediaTypeFilter = document.getElementById('mediaType').value;
       
-      // Show consolidated section
       document.getElementById('consolidatedSection').style.display = 'block';
       
       let tableHTML = `
@@ -878,21 +830,23 @@
           <table class="consolidated-table">
             <thead>
               <tr>
-                <th rowspan="2">Date</th>
-                <th rowspan="2">Day</th>
-                <th rowspan="2">Media Type</th>
-                <th colspan="2" class="group-header">Offered</th>
-                <th colspan="2" class="group-header">Average Handle Time</th>
-                <th colspan="2" class="group-header">Service Level</th>
-                <th rowspan="2">Action</th>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Media Type</th>
+                <th colspan="2" class="group-header">Forecast Data</th>
+                <th colspan="3" class="group-header">Performance Predictions</th>
+                <th>Action</th>
               </tr>
               <tr>
-                <th class="sub-header">Forecast</th>
-                <th class="sub-header">Actual</th>
-                <th class="sub-header">Forecast</th>
-                <th class="sub-header">Actual</th>
-                <th class="sub-header">Predicted</th>
-                <th class="sub-header">Actual</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th class="sub-header">Offered</th>
+                <th class="sub-header">AHT</th>
+                <th class="sub-header">Service Level</th>
+                <th class="sub-header">ASA</th>
+                <th class="sub-header">Occupancy</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -900,12 +854,11 @@
 
       // Calculate weekly totals
       const weeklyTotals = {
-        offeredForecast: 0,
-        offeredActual: 0,
-        ahtForecast: 0,
-        ahtActual: 0,
-        slPredicted: 0,
-        slActual: 0,
+        offered: 0,
+        aht: 0,
+        serviceLevel: 0,
+        asa: 0,
+        occupancy: 0,
         count: 0
       };
 
@@ -924,47 +877,37 @@
           const performanceSummary = group.performancePredictionDataSummary || {};
 
           // Forecast data from forecastDataSummary
-          const offeredForecast = forecastSummary.offered || 0;
-          const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
+          const offered = forecastSummary.offered || 0;
+          const aht = forecastSummary.averageHandleTimeSeconds || 0;
 
           // Prediction data from performancePredictionDataSummary
-          const slPredicted = performanceSummary.serviceLevelPercent || 0;
+          const serviceLevel = performanceSummary.serviceLevelPercent || 0;
+          const asa = performanceSummary.averageSpeedOfAnswerSeconds || 0;
+          const occupancy = performanceSummary.occupancyPercent || 0;
 
-          // Determine if this is a future date
-          const isFuture = isFutureDate(day.uk);
-          
-          // For actual data: 
-          // - Future dates: show "N/A" since no actual data exists
-          // - Historical dates: We'll need to get actual data from a different API
-          const offeredActual = isFuture ? null : null; // Will be populated when we have actual API
-          const ahtActual = isFuture ? null : null; // Will be populated when we have actual API
-          const slActual = isFuture ? null : null; // Will be populated when we have actual API
-
-          weeklyTotals.offeredForecast += offeredForecast;
-          weeklyTotals.offeredActual += offeredActual || 0;
-          weeklyTotals.ahtForecast += ahtForecast;
-          weeklyTotals.ahtActual += ahtActual || 0;
-          weeklyTotals.slPredicted += slPredicted;
-          weeklyTotals.slActual += slActual || 0;
+          weeklyTotals.offered += offered;
+          weeklyTotals.aht += aht;
+          weeklyTotals.serviceLevel += serviceLevel;
+          weeklyTotals.asa += asa;
+          weeklyTotals.occupancy += occupancy;
           weeklyTotals.count++;
         });
       });
 
       // Add weekly totals row
-      const avgAHTForecast = weeklyTotals.count ? weeklyTotals.ahtForecast / weeklyTotals.count : 0;
-      const avgAHTActual = weeklyTotals.count ? weeklyTotals.ahtActual / weeklyTotals.count : 0;
-      const avgSLPredicted = weeklyTotals.count ? weeklyTotals.slPredicted / weeklyTotals.count : 0;
-      const avgSLActual = weeklyTotals.count ? weeklyTotals.slActual / weeklyTotals.count : 0;
+      const avgAHT = weeklyTotals.count ? weeklyTotals.aht / weeklyTotals.count : 0;
+      const avgSL = weeklyTotals.count ? weeklyTotals.serviceLevel / weeklyTotals.count : 0;
+      const avgASA = weeklyTotals.count ? weeklyTotals.asa / weeklyTotals.count : 0;
+      const avgOccupancy = weeklyTotals.count ? weeklyTotals.occupancy / weeklyTotals.count : 0;
 
       tableHTML += `
         <tr class="weekly-totals-row">
-          <td colspan="3"><strong>Week Totals</strong></td>
-          <td><strong>${Math.round(weeklyTotals.offeredForecast)}</strong></td>
-          <td><strong>${weeklyTotals.offeredActual > 0 ? Math.round(weeklyTotals.offeredActual) : 'N/A'}</strong></td>
-          <td><strong>${formatTime(avgAHTForecast)}</strong></td>
-          <td><strong>${avgAHTActual > 0 ? formatTime(avgAHTActual) : 'N/A'}</strong></td>
-          <td><strong>${formatPercentage(avgSLPredicted)}</strong></td>
-          <td><strong>${avgSLActual > 0 ? formatPercentage(avgSLActual) : 'N/A'}</strong></td>
+          <td colspan="3"><strong>Week Totals/Averages</strong></td>
+          <td><strong>${Math.round(weeklyTotals.offered)}</strong></td>
+          <td><strong>${formatTime(avgAHT)}</strong></td>
+          <td><strong>${formatPercentage(avgSL)}</strong></td>
+          <td><strong>${formatTime(avgASA)}</strong></td>
+          <td><strong>${formatPercentage(avgOccupancy)}</strong></td>
           <td></td>
         </tr>
       `;
@@ -977,7 +920,7 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="8" class="no-data">${day.error || 'No data available'}</td>
+              <td colspan="7" class="no-data">${day.error || 'No forecast data available'}</td>
             </tr>
           `;
           return;
@@ -991,7 +934,7 @@
             <tr>
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
-              <td colspan="8" class="no-data">No data groupings available</td>
+              <td colspan="7" class="no-data">No forecast data available</td>
             </tr>
           `;
           return;
@@ -1005,41 +948,31 @@
           const performanceSummary = group.performancePredictionDataSummary || {};
 
           // Forecast data from forecastDataSummary
-          const offeredForecast = forecastSummary.offered || 0;
-          const ahtForecast = forecastSummary.averageHandleTimeSeconds || 0;
+          const offered = forecastSummary.offered || 0;
+          const aht = forecastSummary.averageHandleTimeSeconds || 0;
 
           // Prediction data from performancePredictionDataSummary
-          const slPredicted = performanceSummary.serviceLevelPercent || 0;
-
-          // Determine if this is a future date
-          const isFuture = isFutureDate(day.uk);
-          
-          // For actual data: 
-          // - Future dates: show "N/A" since no actual data exists
-          // - Historical dates: We'll need to get actual data from a different API
-          const offeredActual = isFuture ? null : null; // Will be populated when we have actual API
-          const ahtActual = isFuture ? null : null; // Will be populated when we have actual API
-          const slActual = isFuture ? null : null; // Will be populated when we have actual API
+          const serviceLevel = performanceSummary.serviceLevelPercent || 0;
+          const asa = performanceSummary.averageSpeedOfAnswerSeconds || 0;
+          const occupancy = performanceSummary.occupancyPercent || 0;
 
           const dayOfWeek = getDayOfWeek(day.uk);
-          
-          const rowClass = isFuture ? 'future-date' : '';
-          const actualClass = isFuture ? 'no-actual-data' : '';
+          const isFuture = isFutureDate(day.uk);
+          const rowClass = isFuture ? 'future-date' : 'past-date';
           
           tableHTML += `
             <tr class="${rowClass}">
               <td>${day.uk}</td>
               <td>${dayOfWeek}</td>
               <td>${group.mediaType}</td>
-              <td>${Math.round(offeredForecast)}</td>
-              <td class="${actualClass}">${offeredActual !== null ? Math.round(offeredActual) : 'N/A'}</td>
-              <td>${formatTime(ahtForecast)}</td>
-              <td class="${actualClass}">${ahtActual !== null ? formatTime(ahtActual) : 'N/A'}</td>
-              <td>${formatPercentage(slPredicted)}</td>
-              <td class="${actualClass}">${slActual !== null ? formatPercentage(slActual) : 'N/A'}</td>
+              <td>${Math.round(offered)}</td>
+              <td>${formatTime(aht)}</td>
+              <td>${formatPercentage(serviceLevel)}</td>
+              <td>${formatTime(asa)}</td>
+              <td>${formatPercentage(occupancy)}</td>
               <td>
                 <button onclick='show15MinDetails(${JSON.stringify(day).replace(/'/g, "&apos;")}, "${group.mediaType}")'>
-                  View Details
+                  View Intervals
                 </button>
               </td>
             </tr>
@@ -1049,77 +982,6 @@
 
       tableHTML += '</tbody></table></div>';
       document.getElementById('consolidatedTableContainer').innerHTML = tableHTML;
-      
-      // Update weekly summary
-      updateWeeklySummary(mediaTypeFilter);
-    }
-
-    function updateWeeklySummary(mediaTypeFilter) {
-      const weeklyTotals = { 
-        offered: 0, aht: 0, scheduledTime: 0, 
-        serviceLevel: 0, asa: 0, occupancy: 0, count: 0 
-      };
-
-      state.weekData.forEach(day => {
-        if (!day.data || !day.data.result) return;
-        
-        const groupings = day.data.result.intradayDataGroupings;
-        if (!Array.isArray(groupings)) return;
-
-        groupings.forEach(group => {
-          if (!group || !group.mediaType) return;
-          if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
-
-          const forecastSummary = group.forecastDataSummary || {};
-          const scheduleSummary = group.scheduleDataSummary || {};
-          const performanceSummary = group.performancePredictionDataSummary || {};
-
-          weeklyTotals.offered += forecastSummary.offered || 0;
-          weeklyTotals.aht += forecastSummary.averageHandleTimeSeconds || 0;
-          weeklyTotals.scheduledTime += scheduleSummary.onQueueTimeSeconds || 0;
-          weeklyTotals.serviceLevel += performanceSummary.serviceLevelPercent || 0;
-          weeklyTotals.asa += performanceSummary.averageSpeedOfAnswerSeconds || 0;
-          weeklyTotals.occupancy += performanceSummary.occupancyPercent || 0;
-          weeklyTotals.count++;
-        });
-      });
-
-      const weeklyAvgAHT = weeklyTotals.count ? weeklyTotals.aht / weeklyTotals.count : 0;
-      const weeklyAvgSL = weeklyTotals.count ? weeklyTotals.serviceLevel / weeklyTotals.count : 0;
-      const weeklyAvgASA = weeklyTotals.count ? weeklyTotals.asa / weeklyTotals.count : 0;
-      const weeklyAvgOccupancy = weeklyTotals.count ? weeklyTotals.occupancy / weeklyTotals.count : 0;
-
-      const summaryHTML = `
-        <div class="table-container">
-          <table class="summary-table">
-            <thead>
-              <tr>
-                <th>Summary</th>
-                <th>Forecast Offered</th>
-                <th>Avg AHT</th>
-                <th>Total Scheduled</th>
-                <th>Avg SL</th>
-                <th>Avg ASA</th>
-                <th>Avg Occupancy</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Weekly Totals/Averages</td>
-                <td>${Math.round(weeklyTotals.offered)}</td>
-                <td>${formatTime(weeklyAvgAHT)}</td>
-                <td>${formatHours(weeklyTotals.scheduledTime)}</td>
-                <td>${formatNumber(weeklyAvgSL)}%</td>
-                <td>${formatTime(weeklyAvgASA)}</td>
-                <td>${formatNumber(weeklyAvgOccupancy)}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      document.getElementById('weeklySummary').innerHTML = summaryHTML;
-      document.getElementById('weeklySummary').className = '';
     }
 
     function render15MinTable(day, mediaType) {
@@ -1144,22 +1006,19 @@
       if (day.data?.result?.intradayDataGroupings) {
         const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
         if (!grouping) {
-          tableHTML += '<tr><td colspan="7" class="no-data">No data for selected media type</td></tr>';
+          tableHTML += '<tr><td colspan="7" class="no-data">No forecast data for selected media type</td></tr>';
         } else {
           const startDate = new Date(day.data.result.startDate);
           
-          // Create a full day of intervals (midnight to midnight)
           for (let i = 0; i < 96; i++) {
             const intervalTime = new Date(startDate);
             intervalTime.setMinutes(intervalTime.getMinutes() + i * 15);
             const timeStr = intervalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
-            // Get interval data - handle null values
             const forecast = grouping.forecastDataPerInterval?.[i] || {};
             const schedule = grouping.scheduleDataPerInterval?.[i] || {};
             const performance = grouping.performancePredictionDataPerInterval?.[i] || {};
 
-            // Always show all intervals, use '-' for missing data
             tableHTML += `
               <tr>
                 <td>${timeStr}</td>
@@ -1174,7 +1033,7 @@
           }
         }
       } else {
-        tableHTML += '<tr><td colspan="7" class="no-data">No data available</td></tr>';
+        tableHTML += '<tr><td colspan="7" class="no-data">No forecast data available</td></tr>';
       }
       
       tableHTML += '</tbody></table></div>';
