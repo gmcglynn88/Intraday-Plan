@@ -256,7 +256,9 @@
       calendarDate: new Date(),
       // Weekly/Monthly view state
       currentWeekStart: getMonday(new Date()),
-      currentMonthStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      currentMonthStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      // Store monthly data separately
+      monthlyData: {}
     };
 
     // ===== Calendar Functions =====
@@ -564,10 +566,10 @@
       // Load initial data
       fetchBusinessUnits();
       
-      // Set default week to next week (focus on future)
+      // Set default week to current week instead of forcing 2025
       const today = new Date();
       const dayOfWeek = today.getDay();
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) + 7; // +7 for next week
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
       const monday = new Date(today.setDate(diff));
       selectWeek(monday);
 
@@ -601,6 +603,8 @@
       // If we already have data, re-render with new filters
       if (state.weekData.length > 0) {
         renderAllData();
+        updateWeeklyViewDisplay();
+        updateMonthlyViewDisplay();
       }
     }
 
@@ -675,6 +679,8 @@
       
       if (state.weekData.length > 0) {
         document.getElementById('weeklyViewContainer').innerHTML = generateWeeklyViewTable();
+      } else {
+        document.getElementById('weeklyViewContainer').innerHTML = '<div class="no-data">Load forecast data first to view weekly summary</div>';
       }
     }
 
@@ -686,6 +692,8 @@
       
       if (state.weekData.length > 0) {
         document.getElementById('monthlyViewContainer').innerHTML = generateMonthlyViewTable();
+      } else {
+        document.getElementById('monthlyViewContainer').innerHTML = '<div class="no-data">Load forecast data first to view monthly summary</div>';
       }
     }
 
@@ -705,24 +713,23 @@
       
       let html = '';
       
-      // Group data by media type
-      const mediaTypes = {};
+      // Group data by media type - get ALL media types from the data
+      const mediaTypes = new Set();
       state.weekData.forEach(day => {
-        if (!day.data?.result?.intradayDataGroupings) return;
-        
-        day.data.result.intradayDataGroupings.forEach(group => {
-          if (!group.mediaType) return;
-          if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
-          
-          if (!mediaTypes[group.mediaType]) {
-            mediaTypes[group.mediaType] = [];
-          }
-          mediaTypes[group.mediaType].push({ day: day.uk, group });
-        });
+        if (day.data?.result?.intradayDataGroupings) {
+          day.data.result.intradayDataGroupings.forEach(group => {
+            if (group.mediaType) {
+              mediaTypes.add(group.mediaType);
+            }
+          });
+        }
       });
 
-      Object.keys(mediaTypes).forEach(mediaType => {
-        const planningGroupName = mediaType === 'Voice' ? 'Customer Service - Voice' : 'Customer Service - Digital';
+      // If media type filter is set, only show that type
+      const mediaTypesToShow = mediaTypeFilter ? [mediaTypeFilter] : Array.from(mediaTypes);
+
+      mediaTypesToShow.forEach(mediaType => {
+        const planningGroupName = getPlanningGroupName(mediaType);
         const mediaTypeDisplay = mediaType === 'Voice' ? 'Voice' : 'Message';
         
         html += `
@@ -741,8 +748,9 @@
         // Offered
         html += `<tr class="data-row"><td>Offered</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const offered = dayData?.group.forecastDataSummary?.offered || 0;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const offered = grouping?.forecastDataSummary?.offered || 0;
           html += `<td>${Math.round(offered)}</td>`;
         });
         html += `</tr>`;
@@ -750,8 +758,9 @@
         // Average Handle Time
         html += `<tr class="data-row"><td>Average Handle Time</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const aht = dayData?.group.forecastDataSummary?.averageHandleTimeSeconds || 0;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const aht = grouping?.forecastDataSummary?.averageHandleTimeSeconds || 0;
           html += `<td>${formatTime(aht)}</td>`;
         });
         html += `</tr>`;
@@ -759,8 +768,9 @@
         // Service Level
         html += `<tr class="data-row"><td>Service Level</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const sl = dayData?.group.performancePredictionDataSummary?.serviceLevelPercent || 0;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const sl = grouping?.performancePredictionDataSummary?.serviceLevelPercent || 0;
           html += `<td>${formatPercentage(sl)}</td>`;
         });
         html += `</tr>`;
@@ -768,8 +778,9 @@
         // Average Speed of Answer
         html += `<tr class="data-row"><td>Average Speed of Answer</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const asa = dayData?.group.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || 0;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const asa = grouping?.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || 0;
           html += `<td>${formatTime(asa)}</td>`;
         });
         html += `</tr>`;
@@ -801,25 +812,23 @@
       
       let html = '';
       
-      // Group data by media type - for monthly view, we'll use the available data
-      // and fill missing days with placeholders or use averages
-      const mediaTypes = {};
+      // Group data by media type - get ALL media types from the data
+      const mediaTypes = new Set();
       state.weekData.forEach(day => {
-        if (!day.data?.result?.intradayDataGroupings) return;
-        
-        day.data.result.intradayDataGroupings.forEach(group => {
-          if (!group.mediaType) return;
-          if (mediaTypeFilter && group.mediaType !== mediaTypeFilter) return;
-          
-          if (!mediaTypes[group.mediaType]) {
-            mediaTypes[group.mediaType] = [];
-          }
-          mediaTypes[group.mediaType].push({ day: day.uk, group });
-        });
+        if (day.data?.result?.intradayDataGroupings) {
+          day.data.result.intradayDataGroupings.forEach(group => {
+            if (group.mediaType) {
+              mediaTypes.add(group.mediaType);
+            }
+          });
+        }
       });
 
-      Object.keys(mediaTypes).forEach(mediaType => {
-        const planningGroupName = mediaType === 'Voice' ? 'Customer Service - Voice' : 'Customer Service - Digital';
+      // If media type filter is set, only show that type
+      const mediaTypesToShow = mediaTypeFilter ? [mediaTypeFilter] : Array.from(mediaTypes);
+
+      mediaTypesToShow.forEach(mediaType => {
+        const planningGroupName = getPlanningGroupName(mediaType);
         const mediaTypeDisplay = mediaType === 'Voice' ? 'Voice' : 'Message';
         
         html += `
@@ -835,22 +844,43 @@
               </tr>
         `;
 
-        // Calculate averages for the month based on available data
-        const totalOffered = mediaTypes[mediaType].reduce((sum, d) => sum + (d.group.forecastDataSummary?.offered || 0), 0);
-        const totalAHT = mediaTypes[mediaType].reduce((sum, d) => sum + (d.group.forecastDataSummary?.averageHandleTimeSeconds || 0), 0);
-        const totalSL = mediaTypes[mediaType].reduce((sum, d) => sum + (d.group.performancePredictionDataSummary?.serviceLevelPercent || 0), 0);
-        const totalASA = mediaTypes[mediaType].reduce((sum, d) => sum + (d.group.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || 0), 0);
-        
-        const avgOffered = totalOffered / Math.max(mediaTypes[mediaType].length, 1);
-        const avgAHT = totalAHT / Math.max(mediaTypes[mediaType].length, 1);
-        const avgSL = totalSL / Math.max(mediaTypes[mediaType].length, 1);
-        const avgASA = totalASA / Math.max(mediaTypes[mediaType].length, 1);
+        // Calculate averages for the month based on available data for this media type
+        const availableData = state.weekData.filter(day => {
+          const grouping = day.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          return grouping && grouping.forecastDataSummary;
+        });
 
-        // Offered
+        const totalOffered = availableData.reduce((sum, day) => {
+          const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
+          return sum + (grouping.forecastDataSummary?.offered || 0);
+        }, 0);
+
+        const totalAHT = availableData.reduce((sum, day) => {
+          const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
+          return sum + (grouping.forecastDataSummary?.averageHandleTimeSeconds || 0);
+        }, 0);
+
+        const totalSL = availableData.reduce((sum, day) => {
+          const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
+          return sum + (grouping.performancePredictionDataSummary?.serviceLevelPercent || 0);
+        }, 0);
+
+        const totalASA = availableData.reduce((sum, day) => {
+          const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
+          return sum + (grouping.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || 0);
+        }, 0);
+        
+        const avgOffered = availableData.length ? totalOffered / availableData.length : 0;
+        const avgAHT = availableData.length ? totalAHT / availableData.length : 0;
+        const avgSL = availableData.length ? totalSL / availableData.length : 0;
+        const avgASA = availableData.length ? totalASA / availableData.length : 0;
+
+        // Offered - use actual data where available, otherwise use average
         html += `<tr class="data-row"><td>Offered</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const offered = dayData?.group.forecastDataSummary?.offered || Math.round(avgOffered);
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const offered = grouping?.forecastDataSummary?.offered || avgOffered;
           html += `<td>${Math.round(offered)}</td>`;
         });
         html += `</tr>`;
@@ -858,8 +888,9 @@
         // Average Handle Time
         html += `<tr class="data-row"><td>Average Handle Time</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const aht = dayData?.group.forecastDataSummary?.averageHandleTimeSeconds || avgAHT;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const aht = grouping?.forecastDataSummary?.averageHandleTimeSeconds || avgAHT;
           html += `<td>${formatTime(aht)}</td>`;
         });
         html += `</tr>`;
@@ -867,8 +898,9 @@
         // Service Level
         html += `<tr class="data-row"><td>Service Level</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const sl = dayData?.group.performancePredictionDataSummary?.serviceLevelPercent || avgSL;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const sl = grouping?.performancePredictionDataSummary?.serviceLevelPercent || avgSL;
           html += `<td>${formatPercentage(sl)}</td>`;
         });
         html += `</tr>`;
@@ -876,8 +908,9 @@
         // Average Speed of Answer
         html += `<tr class="data-row"><td>Average Speed of Answer</td>`;
         days.forEach(day => {
-          const dayData = mediaTypes[mediaType].find(d => d.day === day);
-          const asa = dayData?.group.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || avgASA;
+          const dayData = state.weekData.find(d => d.uk === day);
+          const grouping = dayData?.data?.result?.intradayDataGroupings?.find(g => g.mediaType === mediaType);
+          const asa = grouping?.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds || avgASA;
           html += `<td>${formatTime(asa)}</td>`;
         });
         html += `</tr>`;
@@ -886,6 +919,10 @@
       });
 
       return html || '<div class="no-data">No data available for selected filters</div>';
+    }
+
+    function getPlanningGroupName(mediaType) {
+      return mediaType === 'Voice' ? 'Customer Service - Voice' : 'Customer Service - Digital';
     }
 
     // Helper functions
