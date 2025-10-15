@@ -965,26 +965,116 @@
       showMessage('Monthly forecast data loaded!', 'success');
     }
 
-    // ===== View Rendering =====
-    function updateWeeklyViewDisplay() {
-      const weekEnd = new Date(state.currentWeekStart);
-      weekEnd.setDate(state.currentWeekStart.getDate() + 6);
-      
-      document.getElementById('weekRangeDisplay').textContent = 
-        `${getUKFormattedDate(state.currentWeekStart)} - ${getUKFormattedDate(weekEnd)}`;
-      
-      document.getElementById('weeklyViewContainer').innerHTML = state.weekData.length ? 
-        generateWeeklyViewTables() : 
-        '<div class="no-data">Load forecast data first to view weekly summary</div>';
+    // ===== MISSING FUNCTIONS - ADDED BELOW =====
+    function renderAllData() {
+      renderConsolidatedTable();
+      render15MinTable();
+      updateWeeklyViewDisplay();
+      updateMonthlyViewDisplay();
     }
 
-    function updateMonthlyViewDisplay() {
-      document.getElementById('monthRangeDisplay').textContent = 
-        `${state.currentMonthStart.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}`;
+    function renderConsolidatedTable() {
+      const container = document.getElementById('consolidatedTableContainer');
+      const mediaTypeFilter = document.getElementById('mediaType').value;
+      const planningGroups = groupsPresent();
       
-      document.getElementById('monthlyViewContainer').innerHTML = state.weekData.length ? 
-        generateMonthlyViewTables() : 
-        '<div class="no-data">Load forecast data first to view monthly summary</div>';
+      if (planningGroups.length === 0) {
+        container.innerHTML = '<div class="no-data">No planning groups in data.</div>';
+        document.getElementById('consolidatedSection').style.display = 'none';
+        return;
+      }
+
+      let html = '';
+      
+      planningGroups.forEach(group => {
+        html += `
+          <div class="table-container" style="margin-bottom:30px;">
+            <table class="consolidated-table">
+              <tr>
+                <th colspan="8" class="group-header">Planning Group: ${group.name}${mediaTypeFilter ? ` &nbsp;&nbsp;|&nbsp; Media Type: ${mediaTypeFilter}` : ''}</th>
+              </tr>
+              <tr>
+                <th class="sub-header">Day</th>
+                <th class="sub-header">Date</th>
+                <th class="sub-header">Offered</th>
+                <th class="sub-header">Avg Handle Time</th>
+                <th class="sub-header">Service Level</th>
+                <th class="sub-header">Avg Speed Answer</th>
+                <th class="sub-header">Occupancy</th>
+                <th class="sub-header">Staffed</th>
+              </tr>
+        `;
+
+        let weeklyTotals = { offered: 0, aht: 0, sl: 0, asa: 0, occupancy: 0, staffed: 0 };
+        let dayCount = 0;
+
+        state.weekData.forEach(day => {
+          const groupData = day.data?.result?.intradayDataGroupings?.find(g =>
+            (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
+            (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
+          );
+
+          if (groupData) {
+            const forecast = groupData.forecastDataSummary || {};
+            const prediction = groupData.performancePredictionDataSummary || {};
+            const fallback = computePredictionFallback(groupData);
+            
+            const offered = forecast.offered || 0;
+            const aht = forecast.averageHandleTimeSeconds || 0;
+            const sl = prediction.serviceLevelPercent || fallback.serviceLevelPercent || 0;
+            const asa = prediction.averageSpeedOfAnswerSeconds || fallback.averageSpeedOfAnswerSeconds || 0;
+            const occupancy = prediction.occupancyPercent || fallback.occupancyPercent || 0;
+            const staffed = forecast.staffed || 0;
+
+            weeklyTotals.offered += offered;
+            weeklyTotals.aht += aht;
+            weeklyTotals.sl += (sl || 0);
+            weeklyTotals.asa += asa;
+            weeklyTotals.occupancy += (occupancy || 0);
+            weeklyTotals.staffed += staffed;
+            dayCount++;
+
+            html += `
+              <tr>
+                <td>${getDOWFromUK(day.uk)}</td>
+                <td>${day.uk}</td>
+                <td>${formatNumber(offered)}</td>
+                <td>${formatTime(aht)}</td>
+                <td>${formatPercentage(sl)}</td>
+                <td>${formatTime(asa)}</td>
+                <td>${formatPercentage(occupancy)}</td>
+                <td>${formatNumber(staffed)}</td>
+              </tr>
+            `;
+          }
+        });
+
+        // Add weekly averages
+        if (dayCount > 0) {
+          html += `
+            <tr class="weekly-totals-row">
+              <td colspan="2"><strong>Weekly Average</strong></td>
+              <td><strong>${formatNumber(weeklyTotals.offered / dayCount)}</strong></td>
+              <td><strong>${formatTime(weeklyTotals.aht / dayCount)}</strong></td>
+              <td><strong>${formatPercentage(weeklyTotals.sl / dayCount)}</strong></td>
+              <td><strong>${formatTime(weeklyTotals.asa / dayCount)}</strong></td>
+              <td><strong>${formatPercentage(weeklyTotals.occupancy / dayCount)}</strong></td>
+              <td><strong>${formatNumber(weeklyTotals.staffed / dayCount)}</strong></td>
+            </tr>
+          `;
+        }
+
+        html += `</table></div>`;
+      });
+
+      container.innerHTML = html;
+      document.getElementById('consolidatedSection').style.display = 'block';
+      document.getElementById('weeklySummary').style.display = 'none';
+    }
+
+    function render15MinTable() {
+      const container = document.getElementById('intervalTableContainer');
+      container.innerHTML = '<div class="no-data">Select a specific day to view 15-minute interval data</div>';
     }
 
     function getAllMediaTypesFromData() {
@@ -1025,178 +1115,11 @@
       return Array.from(groupsMap, ([id, name]) => ({ id, name }));
     }
 
-    // ===== Table Generation =====
-    function generateWeeklyViewTables() {
-      const days = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(state.currentWeekStart);
-        date.setDate(state.currentWeekStart.getDate() + i);
-        days.push(getUKFormattedDate(date));
-      }
-
-      const mediaTypeFilter = document.getElementById('mediaType').value;
-      const planningGroups = groupsPresent();
-      
-      if (planningGroups.length === 0) {
-        return '<div class="no-data">No planning groups in data.</div>';
-      }
-
-      let html = '';
-      
-      planningGroups.forEach(group => {
-        html += `
-          <div class="table-container" style="margin-bottom:30px;">
-            <table>
-              <tr class="planning-group-header">
-                <td colspan="${days.length + 1}">Planning Group: ${group.name}${mediaTypeFilter ? ` &nbsp;&nbsp;|&nbsp; Media Type: ${mediaTypeFilter}` : ''}</td>
-              </tr>
-              <tr>
-                <th></th>
-                ${days.map(day => `<th class="th-dow">${getDOWFromUK(day)}</th>`).join('')}
-              </tr>
-              <tr>
-                <th></th>
-                ${days.map(day => `<th class="th-date">${day}</th>`).join('')}
-              </tr>
-        `;
-
-        // Generate table rows for each metric
-        const metrics = [
-          { name: 'Offered', getValue: (g) => g?.forecastDataSummary?.offered, format: (val) => Number.isFinite(val) ? Math.round(val) : '-' },
-          { name: 'Average Handle Time', getValue: (g) => g?.forecastDataSummary?.averageHandleTimeSeconds, format: formatTime },
-          { name: 'Service Level', getValue: (g) => {
-              let sl = g?.performancePredictionDataSummary?.serviceLevelPercent;
-              if (sl === null || sl === undefined || sl === 0) sl = computePredictionFallback(g).serviceLevelPercent;
-              return sl;
-            }, format: formatPercentage },
-          { name: 'Average Speed of Answer', getValue: (g) => {
-              let asa = g?.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds;
-              if (asa === null || asa === undefined || asa === 0) asa = computePredictionFallback(g).averageSpeedOfAnswerSeconds;
-              return asa;
-            }, format: formatTime }
-        ];
-
-        metrics.forEach(metric => {
-          html += `<tr class="data-row"><td>${metric.name}</td>`;
-          days.forEach(day => {
-            const dayData = state.weekData.find(d => d.uk === day);
-            const groupData = dayData?.data?.result?.intradayDataGroupings?.find(g =>
-              (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
-              (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
-            );
-            const value = metric.getValue(groupData);
-            html += `<td>${metric.format(value)}</td>`;
-          });
-          html += `</tr>`;
-        });
-
-        html += `</table></div>`;
-      });
-
-      return html;
-    }
-
-    function generateMonthlyViewTables() {
-      const start = new Date(state.currentMonthStart.getFullYear(), state.currentMonthStart.getMonth(), 1);
-      const daysInMonth = new Date(state.currentMonthStart.getFullYear(), state.currentMonthStart.getMonth() + 1, 0).getDate();
-      const days = [];
-      
-      for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(start.getFullYear(), start.getMonth(), d);
-        days.push(getUKFormattedDate(date));
-      }
-
-      const mediaTypeFilter = document.getElementById('mediaType').value;
-      const planningGroups = groupsPresent();
-      
-      if (planningGroups.length === 0) {
-        return '<div class="no-data">No planning groups in data.</div>';
-      }
-
-      let html = '';
-      
-      planningGroups.forEach(group => {
-        html += `
-          <div class="table-container" style="margin-bottom:30px; overflow-x:auto;">
-            <table>
-              <tr class="planning-group-header">
-                <td colspan="${days.length + 1}">Planning Group: ${group.name}${mediaTypeFilter ? ` &nbsp;&nbsp;|&nbsp; Media Type: ${mediaTypeFilter}` : ''}</td>
-              </tr>
-              <tr>
-                <th></th>
-                ${days.map(day => `<th class="th-dow">${getDOWFromUK(day)}</th>`).join('')}
-              </tr>
-              <tr>
-                <th></th>
-                ${days.map(day => `<th class="th-date">${day}</th>`).join('')}
-              </tr>
-        `;
-
-        // Calculate averages for fallback values
-        const availableData = state.weekData.filter(day => {
-          const groupData = day.data?.result?.intradayDataGroupings?.find(g =>
-            (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
-            (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
-          );
-          return !!groupData;
-        });
-
-        const averages = {
-          offered: calculateAverage(availableData, g => g?.forecastDataSummary?.offered),
-          aht: calculateAverage(availableData, g => g?.forecastDataSummary?.averageHandleTimeSeconds),
-          sl: calculateAverage(availableData, g => {
-            let sl = g?.performancePredictionDataSummary?.serviceLevelPercent;
-            if (sl === null || sl === undefined || sl === 0) sl = computePredictionFallback(g).serviceLevelPercent;
-            return sl;
-          }),
-          asa: calculateAverage(availableData, g => {
-            let asa = g?.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds;
-            if (asa === null || asa === undefined || asa === 0) asa = computePredictionFallback(g).averageSpeedOfAnswerSeconds;
-            return asa;
-          })
-        };
-
-        // Generate table rows
-        const metrics = [
-          { name: 'Offered', getValue: (g) => g?.forecastDataSummary?.offered ?? averages.offered, format: (val) => Number.isFinite(val) ? Math.round(val) : '-' },
-          { name: 'Average Handle Time', getValue: (g) => g?.forecastDataSummary?.averageHandleTimeSeconds ?? averages.aht, format: formatTime },
-          { name: 'Service Level', getValue: (g) => {
-              let sl = g?.performancePredictionDataSummary?.serviceLevelPercent;
-              if (sl === null || sl === undefined || sl === 0) sl = computePredictionFallback(g).serviceLevelPercent ?? averages.sl;
-              return sl;
-            }, format: formatPercentage },
-          { name: 'Average Speed of Answer', getValue: (g) => {
-              let asa = g?.performancePredictionDataSummary?.averageSpeedOfAnswerSeconds;
-              if (asa === null || asa === undefined || asa === 0) asa = computePredictionFallback(g).averageSpeedOfAnswerSeconds ?? averages.asa;
-              return asa;
-            }, format: formatTime }
-        ];
-
-        metrics.forEach(metric => {
-          html += `<tr class="data-row"><td>${metric.name}</td>`;
-          days.forEach(day => {
-            const dayData = state.weekData.find(d => d.uk === day);
-            const groupData = dayData?.data?.result?.intradayDataGroupings?.find(g =>
-              (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
-              (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
-            );
-            const value = metric.getValue(groupData);
-            html += `<td>${metric.format(value)}</td>`;
-          });
-          html += `</tr>`;
-        });
-
-        html += `</table></div>`;
-      });
-
-      return html;
-    }
-
     function calculateAverage(data, getter) {
       const values = [];
       data.forEach(day => {
-        const groupData = day.data.result.intradayDataGroupings.find(g => getter(g) !== null);
-        const value = getter(groupData);
+        const groupData = day.data?.result?.intradayDataGroupings?.find(g => getter(g) !== null);
+        const value = groupData ? getter(groupData) : null;
         if (value !== null && value !== undefined) values.push(value);
       });
       return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
@@ -1297,10 +1220,6 @@
       updateWeeklyViewDisplay();
       updateMonthlyViewDisplay();
     }
-
-    // Note: The original renderConsolidatedTable() and render15MinTable() functions 
-    // would need to be included here for completeness, but were omitted for brevity
-    // as they are quite lengthy. The structure above shows the improved organization.
   </script>
 </body>
 </html>
