@@ -5,222 +5,11 @@
   <title>Intraday Weekly Plan</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    :root{
-      --primary-color:#63AB8F; --secondary-color:#4A8C7D; --border-color:#DEE2E6;
-      --light-bg:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --text-light:#6C757D;
-      --pill:#e9f6f0;
-    }
-    body{
-      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
-      margin:20px;padding:20px;max-width:1400px;background:var(--light-bg);color:var(--text-color)
-    }
-    #logo-container{text-align:center;margin-bottom:20px} #logo{width:300px}
-    h1{margin:0 0 16px}
-    .card{background:var(--card-bg);border:1px solid var(--border-color);border-radius:12px;padding:24px;margin-top:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-    label{display:block;font-weight:600;margin-bottom:6px}
-    input,select,button,textarea{padding:10px;border:1px solid var(--border-color);border-radius:6px;background:#fff;font-size:14px}
-    button{background:var(--primary-color);color:#fff;font-weight:600;cursor:pointer;transition:background .2s}
-    button:hover{background:var(--secondary-color)} button:disabled{background:var(--text-light);cursor:not-allowed}
-    .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:end}
-    .full-width-btn{width:100%;padding:14px 18px;font-size:16px;margin-top:12px}
-    .muted{color:var(--text-light);font-size:12px}
-    .section-title{margin:0 0 10px;color:var(--secondary-color)}
-
-    #messageContainer{display:none;margin-top:12px}
-    .error-message{color:#b4231a;background:#fee2e2;border:1px solid #fecaca;padding:10px;border-radius:6px}
-    .success-message{color:#14532d;background:#dcfce7;border:1px solid #bbf7d0;padding:10px;border-radius:6px}
-    .info-message{color:#6b4e16;background:#fff7ed;border:1px solid #ffedd5;padding:10px;border-radius:6px}
-
-    /* Table Styling */
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
-    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
-    th { background-color: var(--primary-color); color: white; font-weight: 600; }
-    tr:hover { background-color: rgba(99, 171, 143, 0.05); }
-    
-    /* Consolidated table specific styles */
-    .consolidated-table th.group-header { background-color: var(--secondary-color); text-align: center; }
-    .consolidated-table th.sub-header { background-color: rgba(99, 171, 143, 0.8); }
-    .weekly-totals-row { background-color: rgba(99, 171, 143, 0.1); font-weight: 600; }
-    .weekly-totals-row td { border-bottom: 2px solid var(--primary-color); }
-    .future-date { background-color: rgba(248, 249, 250, 0.5); }
-    .past-date { opacity: 0.7; }
-
-    /* Tab Styling */
-    .tab { display: inline-block; padding: 12px 20px; margin-right: 10px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: 500; }
-    .tab.active { background: var(--primary-color); color: white; font-weight: 600; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    .no-data { color: var(--text-light); font-style: italic; text-align: center; padding: 20px; }
-    .loading { color: var(--text-light); font-style: italic; text-align: center; padding: 20px; }
-
-    .table-container { overflow-x: auto; margin-top: 20px; border: 1px solid var(--border-color); border-radius: 6px; padding: 1px; }
-    .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-
-    select { width: 100%; max-width: 400px; }
-
-    pre.debug { background:#f6f8fa; border:1px solid var(--border-color); padding:12px; border-radius:8px; overflow:auto; }
-    
-    .status-complete { color: green; font-size: 11px; }
-    .status-forecast-only { color: orange; font-size: 11px; }
-    .status-warning { color: red; font-size: 11px; }
-    
-    .load-btn-container { grid-column: 1 / -1; text-align: center; margin-top: 10px; }
-    
-    /* Calendar Styles */
-    .calendar-container { position: relative; }
-    .calendar-input { cursor: pointer; }
-    .calendar-popup { 
-      position: absolute; 
-      top: 100%; 
-      left: 0; 
-      background: white; 
-      border: 1px solid var(--border-color); 
-      border-radius: 6px; 
-      padding: 15px; 
-      z-index: 1000; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      min-width: 300px;
-      display: none;
-    }
-    .calendar-popup.active { display: block; }
-    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-    .calendar-day { padding: 8px; text-align: center; cursor: pointer; border-radius: 4px; }
-    .calendar-day:hover { background: var(--light-bg); }
-    .calendar-day.selected { background: var(--primary-color); color: white; }
-    .calendar-day.other-month { color: var(--text-light); }
-    .calendar-day.week-start { border: 2px solid var(--primary-color); }
-    
-    /* Metric Tables */
-    .metrics-section { margin-bottom: 30px; }
-    .metrics-section h3 { color: var(--secondary-color); margin-bottom: 15px; border-bottom: 2px solid var(--primary-color); padding-bottom: 5px; }
-
-    /* Weekly/Monthly View Styles */
-    .view-controls { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; }
-    .view-controls button { padding: 8px 15px; }
-    .planning-group-header { background-color: #e6f2ff; font-weight: bold; text-align: left; }
-    .media-type-header { background-color: #f0f8ff; text-align: left; }
-    .data-row:nth-child(even) { background-color: #f9f9f9; }
+    /* ... (keep all your existing styles) ... */
   </style>
 </head>
 <body>
-  <div id="logo-container">
-    <img id="logo" src="https://raw.githubusercontent.com/gmcglynn88/Management-Unit-Search/main/Consultinglogo%20(2).png" alt="Company Logo">
-  </div>
-
-  <h1>Intraday Weekly Plan - Forecast & Predictions</h1>
-
-  <div id="authCard" class="card">
-    <div id="auth-message" class="info-message">Authenticating with PureCloud...</div>
-  </div>
-
-  <!-- Debug (shows only when ?debug=1 is in the URL) -->
-  <div id="authDebug" class="card" style="display:none">
-    <h2 class="section-title">Auth debug</h2>
-    <p class="muted">This block appears when you add <code>?debug=1</code> to the page URL.</p>
-    <pre id="authDump" class="debug"></pre>
-    <button id="signinBtn">Sign in with Genesys</button>
-  </div>
-
-  <div id="appContent" style="display:none;">
-    <div id="messageContainer"></div>
-
-    <div class="card">
-      <h2 class="section-title">Configuration</h2>
-      <div class="controls">
-        <div>
-          <label for="businessUnitSelect">Select Business Unit:</label>
-          <select id="businessUnitSelect" disabled>
-            <option value="">-- Loading Business Units --</option>
-          </select>
-        </div>
-        <div>
-          <label for="planningGroup">Select Planning Group:</label>
-          <select id="planningGroup" disabled>
-            <option value="">-- Select Business Unit First --</option>
-          </select>
-        </div>
-        <div class="calendar-container">
-          <label for="weekSelect">Select Week:</label>
-          <input type="text" id="weekSelect" class="calendar-input" placeholder="Click to select week" readonly>
-          <div id="calendarPopup" class="calendar-popup">
-            <div class="calendar-header">
-              <button id="prevMonth">&lt;</button>
-              <h4 id="currentMonth">Month Year</h4>
-              <button id="nextMonth">&gt;</button>
-            </div>
-            <div class="calendar-grid" id="calendarGrid">
-              <!-- Calendar days will be populated here -->
-            </div>
-          </div>
-        </div>
-        <div>
-          <label for="mediaType">Media Type:</label>
-          <select id="mediaType">
-            <option value="">--All--</option>
-            <option value="Voice">Voice</option>
-            <option value="Message">Message</option>
-          </select>
-        </div>
-        <div class="load-btn-container">
-          <button id="loadDataBtn" class="full-width-btn" disabled>
-            Load Forecast Data
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab Navigation -->
-    <div class="card">
-      <div style="margin-bottom: 20px;">
-        <div id="tabs">
-          <div id="dailyTabButton" class="tab active">Daily Forecast</div>
-          <div id="intervalTabButton" class="tab">15-min Intervals</div>
-          <div id="weeklyViewTabButton" class="tab">Weekly View</div>
-          <div id="monthlyViewTabButton" class="tab">Monthly View</div>
-        </div>
-      </div>
-      
-      <div id="dailyTab" class="tab-content active">
-        <h2 class="section-title">Daily Forecast Data</h2>
-        <div id="weeklySummary" class="loading">Select a week and click "Load Forecast Data" to view forecast and predictions</div>
-        
-        <!-- Consolidated Data Table -->
-        <div class="metrics-section" id="consolidatedSection" style="display: none;">
-          <h3>📊 Weekly Forecast & Performance Predictions</h3>
-          <div id="consolidatedTableContainer"></div>
-        </div>
-      </div>
-      
-      <div id="intervalTab" class="tab-content">
-        <h2 class="section-title">15-min Interval Data</h2>
-        <div id="intervalTableContainer" class="loading">Select a day to view interval forecast data</div>
-      </div>
-
-      <!-- Weekly View Tab -->
-      <div id="weeklyViewTab" class="tab-content">
-        <h2 class="section-title">Weekly Forecast View</h2>
-        <div class="view-controls">
-          <button id="prevWeekBtn">Previous Week</button>
-          <span id="weekRangeDisplay"></span>
-          <button id="nextWeekBtn">Next Week</button>
-        </div>
-        <div id="weeklyViewContainer" class="loading">Load forecast data to view weekly summary</div>
-      </div>
-
-      <!-- Monthly View Tab -->
-      <div id="monthlyViewTab" class="tab-content">
-        <h2 class="section-title">Monthly Forecast View</h2>
-        <div class="view-controls">
-          <button id="prevMonthBtn">Previous Month</button>
-          <span id="monthRangeDisplay"></span>
-          <button id="nextMonthBtn">Next Month</button>
-        </div>
-        <div id="monthlyViewContainer" class="loading">Load forecast data to view monthly summary</div>
-      </div>
-    </div>
-  </div>
+  <!-- ... (keep all your existing HTML structure) ... -->
 
   <script>
     // ===== OAuth Config =====
@@ -256,9 +45,7 @@
       calendarDate: new Date(),
       // Weekly/Monthly view state
       currentWeekStart: getMonday(new Date()),
-      currentMonthStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-      // Store monthly data separately
-      monthlyData: {}
+      currentMonthStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
     };
 
     // ===== Calendar Functions =====
@@ -713,20 +500,15 @@
       
       let html = '';
       
-      // Group data by media type - get ALL media types from the data
-      const mediaTypes = new Set();
-      state.weekData.forEach(day => {
-        if (day.data?.result?.intradayDataGroupings) {
-          day.data.result.intradayDataGroupings.forEach(group => {
-            if (group.mediaType) {
-              mediaTypes.add(group.mediaType);
-            }
-          });
-        }
-      });
-
+      // Get all media types from the loaded data
+      const allMediaTypes = getAllMediaTypesFromData();
+      
       // If media type filter is set, only show that type
-      const mediaTypesToShow = mediaTypeFilter ? [mediaTypeFilter] : Array.from(mediaTypes);
+      const mediaTypesToShow = mediaTypeFilter ? [mediaTypeFilter] : allMediaTypes;
+
+      if (mediaTypesToShow.length === 0) {
+        return '<div class="no-data">No data available for selected filters</div>';
+      }
 
       mediaTypesToShow.forEach(mediaType => {
         const planningGroupName = getPlanningGroupName(mediaType);
@@ -745,7 +527,7 @@
               </tr>
         `;
 
-        // Offered
+        // Offered - use forecastDataSummary.offered
         html += `<tr class="data-row"><td>Offered</td>`;
         days.forEach(day => {
           const dayData = state.weekData.find(d => d.uk === day);
@@ -755,7 +537,7 @@
         });
         html += `</tr>`;
 
-        // Average Handle Time
+        // Average Handle Time - use forecastDataSummary.averageHandleTimeSeconds
         html += `<tr class="data-row"><td>Average Handle Time</td>`;
         days.forEach(day => {
           const dayData = state.weekData.find(d => d.uk === day);
@@ -765,7 +547,7 @@
         });
         html += `</tr>`;
 
-        // Service Level
+        // Service Level - use performancePredictionDataSummary.serviceLevelPercent
         html += `<tr class="data-row"><td>Service Level</td>`;
         days.forEach(day => {
           const dayData = state.weekData.find(d => d.uk === day);
@@ -775,7 +557,7 @@
         });
         html += `</tr>`;
 
-        // Average Speed of Answer
+        // Average Speed of Answer - use performancePredictionDataSummary.averageSpeedOfAnswerSeconds
         html += `<tr class="data-row"><td>Average Speed of Answer</td>`;
         days.forEach(day => {
           const dayData = state.weekData.find(d => d.uk === day);
@@ -788,7 +570,7 @@
         html += `</table></div>`;
       });
 
-      return html || '<div class="no-data">No data available for selected filters</div>';
+      return html;
     }
 
     function generateMonthlyViewTable() {
@@ -812,20 +594,15 @@
       
       let html = '';
       
-      // Group data by media type - get ALL media types from the data
-      const mediaTypes = new Set();
-      state.weekData.forEach(day => {
-        if (day.data?.result?.intradayDataGroupings) {
-          day.data.result.intradayDataGroupings.forEach(group => {
-            if (group.mediaType) {
-              mediaTypes.add(group.mediaType);
-            }
-          });
-        }
-      });
-
+      // Get all media types from the loaded data
+      const allMediaTypes = getAllMediaTypesFromData();
+      
       // If media type filter is set, only show that type
-      const mediaTypesToShow = mediaTypeFilter ? [mediaTypeFilter] : Array.from(mediaTypes);
+      const mediaTypesToShow = mediaTypeFilter ? [mediaTypeFilter] : allMediaTypes;
+
+      if (mediaTypesToShow.length === 0) {
+        return '<div class="no-data">No data available for selected filters</div>';
+      }
 
       mediaTypesToShow.forEach(mediaType => {
         const planningGroupName = getPlanningGroupName(mediaType);
@@ -850,6 +627,7 @@
           return grouping && grouping.forecastDataSummary;
         });
 
+        // Calculate averages from actual loaded data
         const totalOffered = availableData.reduce((sum, day) => {
           const grouping = day.data.result.intradayDataGroupings.find(g => g.mediaType === mediaType);
           return sum + (grouping.forecastDataSummary?.offered || 0);
@@ -918,7 +696,21 @@
         html += `</table></div>`;
       });
 
-      return html || '<div class="no-data">No data available for selected filters</div>';
+      return html;
+    }
+
+    function getAllMediaTypesFromData() {
+      const mediaTypes = new Set();
+      state.weekData.forEach(day => {
+        if (day.data?.result?.intradayDataGroupings) {
+          day.data.result.intradayDataGroupings.forEach(group => {
+            if (group.mediaType) {
+              mediaTypes.add(group.mediaType);
+            }
+          });
+        }
+      });
+      return Array.from(mediaTypes);
     }
 
     function getPlanningGroupName(mediaType) {
