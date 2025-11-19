@@ -50,6 +50,7 @@
       display: block;
       font-weight: 600;
       margin-bottom: 6px;
+      font-size: 14px;
     }
 
     input, select, button, textarea {
@@ -58,6 +59,8 @@
       border-radius: 6px;
       background: #fff;
       font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     button {
@@ -66,6 +69,7 @@
       font-weight: 600;
       cursor: pointer;
       transition: background .2s;
+      border: none;
     }
 
     button:hover {
@@ -79,21 +83,29 @@
 
     .controls {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
       align-items: end;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      min-height: 82px;
     }
 
     .full-width-btn {
       width: 100%;
       padding: 14px 18px;
       font-size: 16px;
-      margin-top: 12px;
+      margin-top: 0;
     }
 
     .muted {
       color: var(--text-light);
       font-size: 12px;
+      margin-top: 4px;
+      line-height: 1.3;
     }
 
     .section-title {
@@ -260,6 +272,7 @@
 
     .view-controls button {
       padding: 8px 15px;
+      width: auto;
     }
 
     .planning-group-header {
@@ -279,6 +292,7 @@
 
     .calendar-input {
       cursor: pointer;
+      background: white;
     }
 
     .calendar-popup {
@@ -335,16 +349,27 @@
     .calendar-day.week-start {
       border: 2px solid var(--primary-color);
     }
-    
-    /* Fix for select alignment */
-    .controls > div {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .load-btn-container {
-      display: flex;
-      align-items: flex-end;
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
+        margin: 10px;
+        padding: 10px;
+      }
+      
+      .card {
+        padding: 16px;
+      }
+      
+      .controls {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .tab {
+        padding: 10px 15px;
+        font-size: 14px;
+      }
     }
   </style>
 </head>
@@ -373,21 +398,21 @@
     <div class="card">
       <h2 class="section-title">Configuration</h2>
       <div class="controls">
-        <div>
-          <label for="businessUnitSelect">Select Business Unit:</label>
+        <div class="control-group">
+          <label for="businessUnitSelect">Business Unit:</label>
           <select id="businessUnitSelect" disabled>
             <option value="">-- Loading Business Units --</option>
           </select>
         </div>
-        <div>
-          <label for="planningGroup">Select Planning Group:</label>
+        <div class="control-group">
+          <label for="planningGroup">Planning Group:</label>
           <select id="planningGroup" disabled>
             <option value="">-- Select Business Unit First --</option>
           </select>
-          <div class="muted" style="margin-top:6px">Choose "All planning groups" to see separate tables per PG.</div>
+          <div class="muted">Choose "All planning groups" to see separate tables per PG.</div>
         </div>
-        <div class="calendar-container">
-          <label for="weekSelect">Select Week:</label>
+        <div class="control-group calendar-container">
+          <label for="weekSelect">Week:</label>
           <input type="text" id="weekSelect" class="calendar-input" placeholder="Click to select week" readonly>
           <div id="calendarPopup" class="calendar-popup">
             <div class="calendar-header">
@@ -398,15 +423,16 @@
             <div class="calendar-grid" id="calendarGrid"></div>
           </div>
         </div>
-        <div>
+        <div class="control-group">
           <label for="mediaType">Media Type:</label>
           <select id="mediaType">
-            <option value="">--All--</option>
+            <option value="">-- All Media Types --</option>
             <option value="Voice">Voice</option>
             <option value="Message">Message</option>
           </select>
         </div>
-        <div class="load-btn-container">
+        <div class="control-group">
+          <label>&nbsp;</label>
           <button id="loadDataBtn" class="full-width-btn" disabled>
             Load Forecast Data
           </button>
@@ -482,8 +508,7 @@
       selectedWeekStart: null,
       calendarDate: new Date(),
       currentWeekStart: getMonday(new Date()),
-      currentMonthStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-      dayRegistry: []
+      currentMonthStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
     };
 
     // ===== Utility Functions =====
@@ -518,7 +543,7 @@
 
     function formatPercentage(num) {
       if (num === null || num === undefined) return '-';
-      return Number.isFinite(num) ? num.toFixed(CONFIG.precision) + '%' : '-';
+      return Number.isFinite(num) ? (num * 100).toFixed(CONFIG.precision) + '%' : '-';
     }
 
     function getUKFormattedDate(date) {
@@ -556,14 +581,24 @@
     }
 
     function computePredictionFallback(grouping) {
-      const per = grouping?.performancePredictionDataPerInterval || [];
+      const per = grouping?.forecastDataPerInterval || [];
       let slSum = 0, slCnt = 0, asaSum = 0, asaCnt = 0, occSum = 0, occCnt = 0;
       
       per.forEach(x => {
         if (!x) return;
-        if (x.serviceLevelPercent !== undefined) { slSum += x.serviceLevelPercent; slCnt++; }
-        if (x.averageSpeedOfAnswerSeconds !== undefined) { asaSum += x.averageSpeedOfAnswerSeconds; asaCnt++; }
-        if (x.occupancyPercent !== undefined) { occSum += x.occupancyPercent; occCnt++; }
+        // Check performance prediction data in intervals
+        if (x.performancePrediction && x.performancePrediction.serviceLevelPercent !== undefined) { 
+          slSum += x.performancePrediction.serviceLevelPercent; 
+          slCnt++; 
+        }
+        if (x.performancePrediction && x.performancePrediction.averageSpeedOfAnswerSeconds !== undefined) { 
+          asaSum += x.performancePrediction.averageSpeedOfAnswerSeconds; 
+          asaCnt++; 
+        }
+        if (x.performancePrediction && x.performancePrediction.occupancyPercent !== undefined) { 
+          occSum += x.performancePrediction.occupancyPercent; 
+          occCnt++; 
+        }
       });
       
       return {
@@ -571,6 +606,21 @@
         averageSpeedOfAnswerSeconds: asaCnt ? asaSum / asaCnt : null,
         occupancyPercent: occCnt ? occSum / occCnt : null
       };
+    }
+
+    function getPerformancePredictionData(groupData) {
+      // First try to get from performancePredictionDataSummary
+      if (groupData.performancePredictionDataSummary) {
+        const pred = groupData.performancePredictionDataSummary;
+        return {
+          serviceLevelPercent: pred.serviceLevelPercent,
+          averageSpeedOfAnswerSeconds: pred.averageSpeedOfAnswerSeconds,
+          occupancyPercent: pred.occupancyPercent
+        };
+      }
+      
+      // If not available, compute from interval data
+      return computePredictionFallback(groupData);
     }
 
     function showMessage(msg, type = 'error', details = '') {
@@ -1016,7 +1066,7 @@
               </tr>
         `;
 
-        let weeklyTotals = { offered: 0, aht: 0, sl: 0, asa: 0, occupancy: 0, staffed: 0 };
+        let weeklyTotals = { offered: 0, aht: 0, sl: 0, slCount: 0, asa: 0, asaCount: 0, occupancy: 0, occupancyCount: 0, staffed: 0 };
         let dayCount = 0;
 
         state.weekData.forEach(day => {
@@ -1028,26 +1078,30 @@
           if (groupData) {
             // Get forecast data
             const forecast = groupData.forecastDataSummary || {};
-            // Get performance prediction data - this is the key fix
-            const prediction = groupData.performancePredictionDataSummary || {};
-            const fallback = computePredictionFallback(groupData);
+            // Get performance prediction data
+            const prediction = getPerformancePredictionData(groupData);
             
             const offered = forecast.offered || 0;
             const aht = forecast.averageHandleTimeSeconds || 0;
-            // Use prediction data first, then fallback
-            const sl = prediction.serviceLevelPercent !== undefined ? prediction.serviceLevelPercent : 
-                      fallback.serviceLevelPercent !== undefined ? fallback.serviceLevelPercent : null;
-            const asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? prediction.averageSpeedOfAnswerSeconds : 
-                       fallback.averageSpeedOfAnswerSeconds !== undefined ? fallback.averageSpeedOfAnswerSeconds : null;
-            const occupancy = prediction.occupancyPercent !== undefined ? prediction.occupancyPercent : 
-                            fallback.occupancyPercent !== undefined ? fallback.occupancyPercent : null;
+            const sl = prediction.serviceLevelPercent;
+            const asa = prediction.averageSpeedOfAnswerSeconds;
+            const occupancy = prediction.occupancyPercent;
             const staffed = forecast.staffed || 0;
 
             weeklyTotals.offered += offered;
             weeklyTotals.aht += aht;
-            weeklyTotals.sl += (sl || 0);
-            weeklyTotals.asa += (asa || 0);
-            weeklyTotals.occupancy += (occupancy || 0);
+            if (sl !== null && sl !== undefined) {
+              weeklyTotals.sl += sl;
+              weeklyTotals.slCount++;
+            }
+            if (asa !== null && asa !== undefined) {
+              weeklyTotals.asa += asa;
+              weeklyTotals.asaCount++;
+            }
+            if (occupancy !== null && occupancy !== undefined) {
+              weeklyTotals.occupancy += occupancy;
+              weeklyTotals.occupancyCount++;
+            }
             weeklyTotals.staffed += staffed;
             dayCount++;
 
@@ -1068,15 +1122,22 @@
 
         // Add weekly averages
         if (dayCount > 0) {
+          const avgOffered = weeklyTotals.offered / dayCount;
+          const avgAht = weeklyTotals.aht / dayCount;
+          const avgSl = weeklyTotals.slCount > 0 ? weeklyTotals.sl / weeklyTotals.slCount : null;
+          const avgAsa = weeklyTotals.asaCount > 0 ? weeklyTotals.asa / weeklyTotals.asaCount : null;
+          const avgOccupancy = weeklyTotals.occupancyCount > 0 ? weeklyTotals.occupancy / weeklyTotals.occupancyCount : null;
+          const avgStaffed = weeklyTotals.staffed / dayCount;
+
           html += `
             <tr class="weekly-totals-row">
               <td colspan="2"><strong>Weekly Average</strong></td>
-              <td><strong>${formatNumber(weeklyTotals.offered / dayCount)}</strong></td>
-              <td><strong>${formatTime(weeklyTotals.aht / dayCount)}</strong></td>
-              <td><strong>${formatPercentage(weeklyTotals.sl / dayCount)}</strong></td>
-              <td><strong>${formatTime(weeklyTotals.asa / dayCount)}</strong></td>
-              <td><strong>${formatPercentage(weeklyTotals.occupancy / dayCount)}</strong></td>
-              <td><strong>${formatNumber(weeklyTotals.staffed / dayCount)}</strong></td>
+              <td><strong>${formatNumber(avgOffered)}</strong></td>
+              <td><strong>${formatTime(avgAht)}</strong></td>
+              <td><strong>${formatPercentage(avgSl)}</strong></td>
+              <td><strong>${formatTime(avgAsa)}</strong></td>
+              <td><strong>${formatPercentage(avgOccupancy)}</strong></td>
+              <td><strong>${formatNumber(avgStaffed)}</strong></td>
             </tr>
           `;
         }
@@ -1109,7 +1170,7 @@
       const select = document.getElementById('mediaType');
       const currentValue = select.value;
       
-      select.innerHTML = `<option value="">--All--</option>` + 
+      select.innerHTML = `<option value="">-- All Media Types --</option>` + 
         mediaTypes.map(type => `<option value="${type}">${type}</option>`).join('');
       
       if (mediaTypes.includes(currentValue) || currentValue === '') {
@@ -1176,7 +1237,7 @@
               </tr>
         `;
 
-        let weeklyTotals = { offered: 0, aht: 0, sl: 0, asa: 0, occupancy: 0, staffed: 0 };
+        let weeklyTotals = { offered: 0, aht: 0, sl: 0, slCount: 0, asa: 0, asaCount: 0, occupancy: 0, occupancyCount: 0, staffed: 0 };
         let dayCount = 0;
 
         state.weekData.forEach(day => {
@@ -1187,24 +1248,29 @@
 
           if (groupData) {
             const forecast = groupData.forecastDataSummary || {};
-            const prediction = groupData.performancePredictionDataSummary || {};
-            const fallback = computePredictionFallback(groupData);
+            const prediction = getPerformancePredictionData(groupData);
             
             const offered = forecast.offered || 0;
             const aht = forecast.averageHandleTimeSeconds || 0;
-            const sl = prediction.serviceLevelPercent !== undefined ? prediction.serviceLevelPercent : 
-                      fallback.serviceLevelPercent !== undefined ? fallback.serviceLevelPercent : null;
-            const asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? prediction.averageSpeedOfAnswerSeconds : 
-                       fallback.averageSpeedOfAnswerSeconds !== undefined ? fallback.averageSpeedOfAnswerSeconds : null;
-            const occupancy = prediction.occupancyPercent !== undefined ? prediction.occupancyPercent : 
-                            fallback.occupancyPercent !== undefined ? fallback.occupancyPercent : null;
+            const sl = prediction.serviceLevelPercent;
+            const asa = prediction.averageSpeedOfAnswerSeconds;
+            const occupancy = prediction.occupancyPercent;
             const staffed = forecast.staffed || 0;
 
             weeklyTotals.offered += offered;
             weeklyTotals.aht += aht;
-            weeklyTotals.sl += (sl || 0);
-            weeklyTotals.asa += (asa || 0);
-            weeklyTotals.occupancy += (occupancy || 0);
+            if (sl !== null && sl !== undefined) {
+              weeklyTotals.sl += sl;
+              weeklyTotals.slCount++;
+            }
+            if (asa !== null && asa !== undefined) {
+              weeklyTotals.asa += asa;
+              weeklyTotals.asaCount++;
+            }
+            if (occupancy !== null && occupancy !== undefined) {
+              weeklyTotals.occupancy += occupancy;
+              weeklyTotals.occupancyCount++;
+            }
             weeklyTotals.staffed += staffed;
             dayCount++;
 
@@ -1223,17 +1289,24 @@
           }
         });
 
-        // Add weekly totals
+        // Add weekly averages
         if (dayCount > 0) {
+          const avgOffered = weeklyTotals.offered / dayCount;
+          const avgAht = weeklyTotals.aht / dayCount;
+          const avgSl = weeklyTotals.slCount > 0 ? weeklyTotals.sl / weeklyTotals.slCount : null;
+          const avgAsa = weeklyTotals.asaCount > 0 ? weeklyTotals.asa / weeklyTotals.asaCount : null;
+          const avgOccupancy = weeklyTotals.occupancyCount > 0 ? weeklyTotals.occupancy / weeklyTotals.occupancyCount : null;
+          const avgStaffed = weeklyTotals.staffed / dayCount;
+
           html += `
             <tr class="weekly-totals-row">
               <td colspan="2"><strong>Weekly Average</strong></td>
-              <td><strong>${formatNumber(weeklyTotals.offered / dayCount)}</strong></td>
-              <td><strong>${formatTime(weeklyTotals.aht / dayCount)}</strong></td>
-              <td><strong>${formatPercentage(weeklyTotals.sl / dayCount)}</strong></td>
-              <td><strong>${formatTime(weeklyTotals.asa / dayCount)}</strong></td>
-              <td><strong>${formatPercentage(weeklyTotals.occupancy / dayCount)}</strong></td>
-              <td><strong>${formatNumber(weeklyTotals.staffed / dayCount)}</strong></td>
+              <td><strong>${formatNumber(avgOffered)}</strong></td>
+              <td><strong>${formatTime(avgAht)}</strong></td>
+              <td><strong>${formatPercentage(avgSl)}</strong></td>
+              <td><strong>${formatTime(avgAsa)}</strong></td>
+              <td><strong>${formatPercentage(avgOccupancy)}</strong></td>
+              <td><strong>${formatNumber(avgStaffed)}</strong></td>
             </tr>
           `;
         }
@@ -1286,7 +1359,7 @@
               </tr>
         `;
 
-        let monthlyTotals = { offered: 0, aht: 0, sl: 0, asa: 0, occupancy: 0, staffed: 0 };
+        let monthlyTotals = { offered: 0, aht: 0, sl: 0, slCount: 0, asa: 0, asaCount: 0, occupancy: 0, occupancyCount: 0, staffed: 0 };
         let dayCount = 0;
 
         state.weekData.forEach(day => {
@@ -1297,24 +1370,29 @@
 
           if (groupData) {
             const forecast = groupData.forecastDataSummary || {};
-            const prediction = groupData.performancePredictionDataSummary || {};
-            const fallback = computePredictionFallback(groupData);
+            const prediction = getPerformancePredictionData(groupData);
             
             const offered = forecast.offered || 0;
             const aht = forecast.averageHandleTimeSeconds || 0;
-            const sl = prediction.serviceLevelPercent !== undefined ? prediction.serviceLevelPercent : 
-                      fallback.serviceLevelPercent !== undefined ? fallback.serviceLevelPercent : null;
-            const asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? prediction.averageSpeedOfAnswerSeconds : 
-                       fallback.averageSpeedOfAnswerSeconds !== undefined ? fallback.averageSpeedOfAnswerSeconds : null;
-            const occupancy = prediction.occupancyPercent !== undefined ? prediction.occupancyPercent : 
-                            fallback.occupancyPercent !== undefined ? fallback.occupancyPercent : null;
+            const sl = prediction.serviceLevelPercent;
+            const asa = prediction.averageSpeedOfAnswerSeconds;
+            const occupancy = prediction.occupancyPercent;
             const staffed = forecast.staffed || 0;
 
             monthlyTotals.offered += offered;
             monthlyTotals.aht += aht;
-            monthlyTotals.sl += (sl || 0);
-            monthlyTotals.asa += (asa || 0);
-            monthlyTotals.occupancy += (occupancy || 0);
+            if (sl !== null && sl !== undefined) {
+              monthlyTotals.sl += sl;
+              monthlyTotals.slCount++;
+            }
+            if (asa !== null && asa !== undefined) {
+              monthlyTotals.asa += asa;
+              monthlyTotals.asaCount++;
+            }
+            if (occupancy !== null && occupancy !== undefined) {
+              monthlyTotals.occupancy += occupancy;
+              monthlyTotals.occupancyCount++;
+            }
             monthlyTotals.staffed += staffed;
             dayCount++;
 
@@ -1335,15 +1413,22 @@
 
         // Add monthly averages
         if (dayCount > 0) {
+          const avgOffered = monthlyTotals.offered / dayCount;
+          const avgAht = monthlyTotals.aht / dayCount;
+          const avgSl = monthlyTotals.slCount > 0 ? monthlyTotals.sl / monthlyTotals.slCount : null;
+          const avgAsa = monthlyTotals.asaCount > 0 ? monthlyTotals.asa / monthlyTotals.asaCount : null;
+          const avgOccupancy = monthlyTotals.occupancyCount > 0 ? monthlyTotals.occupancy / monthlyTotals.occupancyCount : null;
+          const avgStaffed = monthlyTotals.staffed / dayCount;
+
           html += `
             <tr class="weekly-totals-row">
               <td colspan="2"><strong>Monthly Average</strong></td>
-              <td><strong>${formatNumber(monthlyTotals.offered / dayCount)}</strong></td>
-              <td><strong>${formatTime(monthlyTotals.aht / dayCount)}</strong></td>
-              <td><strong>${formatPercentage(monthlyTotals.sl / dayCount)}</strong></td>
-              <td><strong>${formatTime(monthlyTotals.asa / dayCount)}</strong></td>
-              <td><strong>${formatPercentage(monthlyTotals.occupancy / dayCount)}</strong></td>
-              <td><strong>${formatNumber(monthlyTotals.staffed / dayCount)}</strong></td>
+              <td><strong>${formatNumber(avgOffered)}</strong></td>
+              <td><strong>${formatTime(avgAht)}</strong></td>
+              <td><strong>${formatPercentage(avgSl)}</strong></td>
+              <td><strong>${formatTime(avgAsa)}</strong></td>
+              <td><strong>${formatPercentage(avgOccupancy)}</strong></td>
+              <td><strong>${formatNumber(avgStaffed)}</strong></td>
             </tr>
           `;
         }
