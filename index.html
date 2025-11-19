@@ -335,6 +335,17 @@
     .calendar-day.week-start {
       border: 2px solid var(--primary-color);
     }
+    
+    /* Fix for select alignment */
+    .controls > div {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .load-btn-container {
+      display: flex;
+      align-items: flex-end;
+    }
   </style>
 </head>
 <body>
@@ -965,7 +976,7 @@
       showMessage('Monthly forecast data loaded!', 'success');
     }
 
-    // ===== MISSING FUNCTIONS - ADDED BELOW =====
+    // ===== Data Rendering Functions =====
     function renderAllData() {
       renderConsolidatedTable();
       render15MinTable();
@@ -1015,21 +1026,27 @@
           );
 
           if (groupData) {
+            // Get forecast data
             const forecast = groupData.forecastDataSummary || {};
+            // Get performance prediction data - this is the key fix
             const prediction = groupData.performancePredictionDataSummary || {};
             const fallback = computePredictionFallback(groupData);
             
             const offered = forecast.offered || 0;
             const aht = forecast.averageHandleTimeSeconds || 0;
-            const sl = prediction.serviceLevelPercent || fallback.serviceLevelPercent || 0;
-            const asa = prediction.averageSpeedOfAnswerSeconds || fallback.averageSpeedOfAnswerSeconds || 0;
-            const occupancy = prediction.occupancyPercent || fallback.occupancyPercent || 0;
+            // Use prediction data first, then fallback
+            const sl = prediction.serviceLevelPercent !== undefined ? prediction.serviceLevelPercent : 
+                      fallback.serviceLevelPercent !== undefined ? fallback.serviceLevelPercent : null;
+            const asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? prediction.averageSpeedOfAnswerSeconds : 
+                       fallback.averageSpeedOfAnswerSeconds !== undefined ? fallback.averageSpeedOfAnswerSeconds : null;
+            const occupancy = prediction.occupancyPercent !== undefined ? prediction.occupancyPercent : 
+                            fallback.occupancyPercent !== undefined ? fallback.occupancyPercent : null;
             const staffed = forecast.staffed || 0;
 
             weeklyTotals.offered += offered;
             weeklyTotals.aht += aht;
             weeklyTotals.sl += (sl || 0);
-            weeklyTotals.asa += asa;
+            weeklyTotals.asa += (asa || 0);
             weeklyTotals.occupancy += (occupancy || 0);
             weeklyTotals.staffed += staffed;
             dayCount++;
@@ -1115,14 +1132,226 @@
       return Array.from(groupsMap, ([id, name]) => ({ id, name }));
     }
 
-    function calculateAverage(data, getter) {
-      const values = [];
-      data.forEach(day => {
-        const groupData = day.data?.result?.intradayDataGroupings?.find(g => getter(g) !== null);
-        const value = groupData ? getter(groupData) : null;
-        if (value !== null && value !== undefined) values.push(value);
+    // ===== Weekly and Monthly View Functions =====
+    function updateWeeklyViewDisplay() {
+      const container = document.getElementById('weeklyViewContainer');
+      const weekStart = state.currentWeekStart;
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      document.getElementById('weekRangeDisplay').textContent = 
+        `Week of ${getUKFormattedDate(weekStart)} - ${getUKFormattedDate(weekEnd)}`;
+      
+      if (state.weekData.length === 0) {
+        container.innerHTML = '<div class="no-data">Load forecast data to view weekly summary</div>';
+        return;
+      }
+      
+      const mediaTypeFilter = document.getElementById('mediaType').value;
+      const planningGroups = groupsPresent();
+      
+      if (planningGroups.length === 0) {
+        container.innerHTML = '<div class="no-data">No planning groups in data.</div>';
+        return;
+      }
+
+      let html = '';
+      
+      planningGroups.forEach(group => {
+        html += `
+          <div class="table-container" style="margin-bottom:30px;">
+            <table class="consolidated-table">
+              <tr>
+                <th colspan="8" class="group-header">Planning Group: ${group.name}${mediaTypeFilter ? ` &nbsp;&nbsp;|&nbsp; Media Type: ${mediaTypeFilter}` : ''}</th>
+              </tr>
+              <tr>
+                <th class="sub-header">Day</th>
+                <th class="sub-header">Date</th>
+                <th class="sub-header">Offered</th>
+                <th class="sub-header">Avg Handle Time</th>
+                <th class="sub-header">Service Level</th>
+                <th class="sub-header">Avg Speed Answer</th>
+                <th class="sub-header">Occupancy</th>
+                <th class="sub-header">Staffed</th>
+              </tr>
+        `;
+
+        let weeklyTotals = { offered: 0, aht: 0, sl: 0, asa: 0, occupancy: 0, staffed: 0 };
+        let dayCount = 0;
+
+        state.weekData.forEach(day => {
+          const groupData = day.data?.result?.intradayDataGroupings?.find(g =>
+            (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
+            (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
+          );
+
+          if (groupData) {
+            const forecast = groupData.forecastDataSummary || {};
+            const prediction = groupData.performancePredictionDataSummary || {};
+            const fallback = computePredictionFallback(groupData);
+            
+            const offered = forecast.offered || 0;
+            const aht = forecast.averageHandleTimeSeconds || 0;
+            const sl = prediction.serviceLevelPercent !== undefined ? prediction.serviceLevelPercent : 
+                      fallback.serviceLevelPercent !== undefined ? fallback.serviceLevelPercent : null;
+            const asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? prediction.averageSpeedOfAnswerSeconds : 
+                       fallback.averageSpeedOfAnswerSeconds !== undefined ? fallback.averageSpeedOfAnswerSeconds : null;
+            const occupancy = prediction.occupancyPercent !== undefined ? prediction.occupancyPercent : 
+                            fallback.occupancyPercent !== undefined ? fallback.occupancyPercent : null;
+            const staffed = forecast.staffed || 0;
+
+            weeklyTotals.offered += offered;
+            weeklyTotals.aht += aht;
+            weeklyTotals.sl += (sl || 0);
+            weeklyTotals.asa += (asa || 0);
+            weeklyTotals.occupancy += (occupancy || 0);
+            weeklyTotals.staffed += staffed;
+            dayCount++;
+
+            html += `
+              <tr>
+                <td>${getDOWFromUK(day.uk)}</td>
+                <td>${day.uk}</td>
+                <td>${formatNumber(offered)}</td>
+                <td>${formatTime(aht)}</td>
+                <td>${formatPercentage(sl)}</td>
+                <td>${formatTime(asa)}</td>
+                <td>${formatPercentage(occupancy)}</td>
+                <td>${formatNumber(staffed)}</td>
+              </tr>
+            `;
+          }
+        });
+
+        // Add weekly totals
+        if (dayCount > 0) {
+          html += `
+            <tr class="weekly-totals-row">
+              <td colspan="2"><strong>Weekly Average</strong></td>
+              <td><strong>${formatNumber(weeklyTotals.offered / dayCount)}</strong></td>
+              <td><strong>${formatTime(weeklyTotals.aht / dayCount)}</strong></td>
+              <td><strong>${formatPercentage(weeklyTotals.sl / dayCount)}</strong></td>
+              <td><strong>${formatTime(weeklyTotals.asa / dayCount)}</strong></td>
+              <td><strong>${formatPercentage(weeklyTotals.occupancy / dayCount)}</strong></td>
+              <td><strong>${formatNumber(weeklyTotals.staffed / dayCount)}</strong></td>
+            </tr>
+          `;
+        }
+
+        html += `</table></div>`;
       });
-      return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+      container.innerHTML = html;
+    }
+
+    function updateMonthlyViewDisplay() {
+      const container = document.getElementById('monthlyViewContainer');
+      const monthStart = state.currentMonthStart;
+      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+      
+      document.getElementById('monthRangeDisplay').textContent = 
+        `${monthStart.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}`;
+      
+      if (state.weekData.length === 0) {
+        container.innerHTML = '<div class="no-data">Load forecast data to view monthly summary</div>';
+        return;
+      }
+      
+      const mediaTypeFilter = document.getElementById('mediaType').value;
+      const planningGroups = groupsPresent();
+      
+      if (planningGroups.length === 0) {
+        container.innerHTML = '<div class="no-data">No planning groups in data.</div>';
+        return;
+      }
+
+      let html = '';
+      
+      planningGroups.forEach(group => {
+        html += `
+          <div class="table-container" style="margin-bottom:30px;">
+            <table class="consolidated-table">
+              <tr>
+                <th colspan="8" class="group-header">Planning Group: ${group.name}${mediaTypeFilter ? ` &nbsp;&nbsp;|&nbsp; Media Type: ${mediaTypeFilter}` : ''}</th>
+              </tr>
+              <tr>
+                <th class="sub-header">Date</th>
+                <th class="sub-header">Day</th>
+                <th class="sub-header">Offered</th>
+                <th class="sub-header">Avg Handle Time</th>
+                <th class="sub-header">Service Level</th>
+                <th class="sub-header">Avg Speed Answer</th>
+                <th class="sub-header">Occupancy</th>
+                <th class="sub-header">Staffed</th>
+              </tr>
+        `;
+
+        let monthlyTotals = { offered: 0, aht: 0, sl: 0, asa: 0, occupancy: 0, staffed: 0 };
+        let dayCount = 0;
+
+        state.weekData.forEach(day => {
+          const groupData = day.data?.result?.intradayDataGroupings?.find(g =>
+            (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
+            (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
+          );
+
+          if (groupData) {
+            const forecast = groupData.forecastDataSummary || {};
+            const prediction = groupData.performancePredictionDataSummary || {};
+            const fallback = computePredictionFallback(groupData);
+            
+            const offered = forecast.offered || 0;
+            const aht = forecast.averageHandleTimeSeconds || 0;
+            const sl = prediction.serviceLevelPercent !== undefined ? prediction.serviceLevelPercent : 
+                      fallback.serviceLevelPercent !== undefined ? fallback.serviceLevelPercent : null;
+            const asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? prediction.averageSpeedOfAnswerSeconds : 
+                       fallback.averageSpeedOfAnswerSeconds !== undefined ? fallback.averageSpeedOfAnswerSeconds : null;
+            const occupancy = prediction.occupancyPercent !== undefined ? prediction.occupancyPercent : 
+                            fallback.occupancyPercent !== undefined ? fallback.occupancyPercent : null;
+            const staffed = forecast.staffed || 0;
+
+            monthlyTotals.offered += offered;
+            monthlyTotals.aht += aht;
+            monthlyTotals.sl += (sl || 0);
+            monthlyTotals.asa += (asa || 0);
+            monthlyTotals.occupancy += (occupancy || 0);
+            monthlyTotals.staffed += staffed;
+            dayCount++;
+
+            html += `
+              <tr>
+                <td>${day.uk}</td>
+                <td>${getDOWFromUK(day.uk)}</td>
+                <td>${formatNumber(offered)}</td>
+                <td>${formatTime(aht)}</td>
+                <td>${formatPercentage(sl)}</td>
+                <td>${formatTime(asa)}</td>
+                <td>${formatPercentage(occupancy)}</td>
+                <td>${formatNumber(staffed)}</td>
+              </tr>
+            `;
+          }
+        });
+
+        // Add monthly averages
+        if (dayCount > 0) {
+          html += `
+            <tr class="weekly-totals-row">
+              <td colspan="2"><strong>Monthly Average</strong></td>
+              <td><strong>${formatNumber(monthlyTotals.offered / dayCount)}</strong></td>
+              <td><strong>${formatTime(monthlyTotals.aht / dayCount)}</strong></td>
+              <td><strong>${formatPercentage(monthlyTotals.sl / dayCount)}</strong></td>
+              <td><strong>${formatTime(monthlyTotals.asa / dayCount)}</strong></td>
+              <td><strong>${formatPercentage(monthlyTotals.occupancy / dayCount)}</strong></td>
+              <td><strong>${formatNumber(monthlyTotals.staffed / dayCount)}</strong></td>
+            </tr>
+          `;
+        }
+
+        html += `</table></div>`;
+      });
+
+      container.innerHTML = html;
     }
 
     // ===== Authentication =====
