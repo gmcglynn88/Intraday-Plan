@@ -361,6 +361,63 @@
       background: var(--primary-color);
       color: white;
     }
+
+    .time-format-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: var(--primary-color);
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -449,6 +506,14 @@
               <option value="monthly">Monthly View</option>
             </select>
           </div>
+          <div class="time-format-toggle">
+            <span class="toggle-label">Time Format:</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="timeFormatToggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label" id="timeFormatLabel">HH:MM:SS</span>
+          </div>
         </div>
         <h2 class="section-title">Forecast Data</h2>
         <div id="weeklySummary" class="loading">Select date range and click "Load Forecast Data" to view forecast and predictions</div>
@@ -459,6 +524,14 @@
       </div>
       
       <div id="intervalTab" class="tab-content">
+        <div class="time-format-toggle">
+          <span class="toggle-label">Time Format:</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="intervalTimeFormatToggle">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label" id="intervalTimeFormatLabel">HH:MM:SS</span>
+        </div>
         <h2 class="section-title">15-min Interval Data</h2>
         <div id="intervalTableContainer" class="loading">Click on a day in the Forecast Data tab to view interval data</div>
       </div>
@@ -516,7 +589,8 @@
       charts: {},
       selectedDayForIntervals: null,
       isDataLoaded: false,
-      currentChartType: 'volume'
+      currentChartType: 'volume',
+      timeFormat: 'hhmmss' // 'hhmmss' or 'seconds'
     };
 
     // ===== Utility Functions =====
@@ -530,10 +604,15 @@
     function formatTime(seconds) {
       if (seconds === null || seconds === undefined) return '-';
       seconds = Math.round(seconds);
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = Math.floor(seconds % 60);
-      return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`;
+      
+      if (state.timeFormat === 'seconds') {
+        return seconds + 's';
+      } else {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`;
+      }
     }
 
     function formatNumber(num) {
@@ -543,9 +622,11 @@
 
     function formatPercentage(num) {
       if (num === null || num === undefined) return '-';
-      // Fix for wild percentages - cap at 100% for display
-      const cappedValue = Math.min(num, 1);
-      return Number.isFinite(cappedValue) ? (cappedValue * 100).toFixed(CONFIG.precision) + '%' : '-';
+      // The API returns decimals (0.1291 = 12.91%), so we multiply by 100 to get percentage
+      const value = num * 100;
+      // Cap at 100% for display to handle any API issues
+      const cappedValue = Math.min(value, 100);
+      return Number.isFinite(cappedValue) ? cappedValue.toFixed(CONFIG.precision) + '%' : '-';
     }
 
     function getUKFormattedDate(date) {
@@ -612,22 +693,20 @@
     }
 
     function getPerformancePredictionData(groupData) {
+      console.log("Raw prediction data:", groupData.performancePredictionDataSummary);
+      
       if (groupData.performancePredictionDataSummary) {
         const pred = groupData.performancePredictionDataSummary;
-        // Fix for wild percentages - ensure they are between 0 and 1
+        // The API returns percentages as decimals (0.1291 = 12.91%), so we don't divide by 100
         return {
-          serviceLevelPercent: pred.serviceLevelPercent != null ? Math.min(pred.serviceLevelPercent / 100, 1) : null,
+          serviceLevelPercent: pred.serviceLevelPercent,
           averageSpeedOfAnswerSeconds: pred.averageSpeedOfAnswerSeconds,
-          occupancyPercent: pred.occupancyPercent != null ? Math.min(pred.occupancyPercent / 100, 1) : null
+          occupancyPercent: pred.occupancyPercent
         };
       }
+      
       const fallback = computePredictionFallback(groupData);
-      // Apply same fixes to fallback data
-      return {
-        serviceLevelPercent: fallback.serviceLevelPercent != null ? Math.min(fallback.serviceLevelPercent / 100, 1) : null,
-        averageSpeedOfAnswerSeconds: fallback.averageSpeedOfAnswerSeconds,
-        occupancyPercent: fallback.occupancyPercent != null ? Math.min(fallback.occupancyPercent / 100, 1) : null
-      };
+      return fallback;
     }
 
     function showMessage(msg, type = 'error', details = '') {
@@ -645,6 +724,19 @@
       
       if (type === 'success') {
         setTimeout(() => box.style.display = 'none', 5000);
+      }
+    }
+
+    function updateTimeFormatLabels() {
+      const label = document.getElementById('timeFormatLabel');
+      const intervalLabel = document.getElementById('intervalTimeFormatLabel');
+      
+      if (state.timeFormat === 'seconds') {
+        label.textContent = 'Seconds';
+        intervalLabel.textContent = 'Seconds';
+      } else {
+        label.textContent = 'HH:MM:SS';
+        intervalLabel.textContent = 'HH:MM:SS';
       }
     }
 
@@ -1271,9 +1363,9 @@
             const time = interval.time || '';
             const offered = forecast.offered || 0;
             const aht = forecast.averageHandleTimeSeconds || 0;
-            const sl = prediction?.serviceLevelPercent != null ? Math.min(prediction.serviceLevelPercent / 100, 1) : null;
+            const sl = prediction?.serviceLevelPercent;
             const asa = prediction?.averageSpeedOfAnswerSeconds;
-            const occupancy = prediction?.occupancyPercent != null ? Math.min(prediction.occupancyPercent / 100, 1) : null;
+            const occupancy = prediction?.occupancyPercent;
             const staffed = forecast.staffed || 0;
 
             html += `
@@ -1631,6 +1723,34 @@
           updateCharts();
         });
       });
+      
+      // Time format toggle handlers
+      document.getElementById('timeFormatToggle').addEventListener('change', function() {
+        state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
+        updateTimeFormatLabels();
+        if (state.isDataLoaded) {
+          renderAllData();
+        }
+      });
+      
+      document.getElementById('intervalTimeFormatToggle').addEventListener('change', function() {
+        state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
+        updateTimeFormatLabels();
+        if (state.selectedDayForIntervals && state.isDataLoaded) {
+          render15MinTable(state.selectedDayForIntervals);
+        }
+      });
+      
+      // Sync the toggles
+      document.getElementById('timeFormatToggle').addEventListener('change', function() {
+        document.getElementById('intervalTimeFormatToggle').checked = this.checked;
+      });
+      
+      document.getElementById('intervalTimeFormatToggle').addEventListener('change', function() {
+        document.getElementById('timeFormatToggle').checked = this.checked;
+      });
+      
+      updateTimeFormatLabels();
       
       const today = new Date();
       const lastWeek = new Date();
