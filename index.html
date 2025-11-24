@@ -418,6 +418,26 @@
       font-size: 14px;
       font-weight: 600;
     }
+
+    .export-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .export-btn {
+      background: var(--secondary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .export-btn:hover {
+      background: var(--primary-color);
+    }
   </style>
 </head>
 <body>
@@ -515,6 +535,9 @@
             <span class="toggle-label" id="timeFormatLabel">HH:MM:SS</span>
           </div>
         </div>
+        <div class="export-buttons">
+          <button class="export-btn" id="exportForecastBtn">Export Forecast Data to CSV</button>
+        </div>
         <h2 class="section-title">Forecast Data</h2>
         <div id="weeklySummary" class="loading">Select date range and click "Load Forecast Data" to view forecast and predictions</div>
         <div class="metrics-section" id="consolidatedSection" style="display: none;">
@@ -524,13 +547,18 @@
       </div>
       
       <div id="intervalTab" class="tab-content">
-        <div class="time-format-toggle">
-          <span class="toggle-label">Time Format:</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="intervalTimeFormatToggle">
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="toggle-label" id="intervalTimeFormatLabel">HH:MM:SS</span>
+        <div class="chart-controls">
+          <div class="time-format-toggle">
+            <span class="toggle-label">Time Format:</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="intervalTimeFormatToggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label" id="intervalTimeFormatLabel">HH:MM:SS</span>
+          </div>
+        </div>
+        <div class="export-buttons">
+          <button class="export-btn" id="exportIntervalBtn">Export Interval Data to CSV</button>
         </div>
         <h2 class="section-title">15-min Interval Data</h2>
         <div id="intervalTableContainer" class="loading">Click on a day in the Forecast Data tab to view interval data</div>
@@ -590,7 +618,8 @@
       selectedDayForIntervals: null,
       isDataLoaded: false,
       currentChartType: 'volume',
-      timeFormat: 'hhmmss' // 'hhmmss' or 'seconds'
+      timeFormat: 'hhmmss', // 'hhmmss' or 'seconds'
+      currentIntervalData: null
     };
 
     // ===== Utility Functions =====
@@ -606,7 +635,7 @@
       seconds = Math.round(seconds);
       
       if (state.timeFormat === 'seconds') {
-        return seconds + 's';
+        return seconds.toString(); // Remove the 's'
       } else {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
@@ -617,7 +646,7 @@
 
     function formatNumber(num) {
       if (num === null || num === undefined) return '-';
-      return Number.isFinite(num) ? num.toFixed(CONFIG.precision) : '-';
+      return Number.isFinite(num) ? Math.round(num).toString() : '-'; // Round to whole numbers
     }
 
     function formatPercentage(num) {
@@ -738,6 +767,93 @@
         label.textContent = 'HH:MM:SS';
         intervalLabel.textContent = 'HH:MM:SS';
       }
+    }
+
+    // ===== CSV Export Functions =====
+    function exportToCSV(filename, csvData) {
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function exportForecastData() {
+      if (!state.isDataLoaded) {
+        showMessage('No data to export', 'error');
+        return;
+      }
+
+      const planningGroups = groupsPresent();
+      let csvContent = 'Planning Group,Period,Date Range,Offered,Avg Handle Time,Service Level,Avg Speed Answer,Occupancy,Staffed\n';
+      
+      planningGroups.forEach(group => {
+        const groupData = state.dateRangeData.map(day => ({
+          ...day,
+          groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
+        }));
+
+        const viewType = document.getElementById('viewType').value;
+        const aggregatedData = aggregateDataByPeriod(groupData, viewType);
+        
+        aggregatedData.forEach(period => {
+          const dateRange = viewType === 'daily' ? 
+            period.label : 
+            `${getUKFormattedDate(period.startDate)} - ${getUKFormattedDate(period.endDate)}`;
+
+          const row = [
+            group.name,
+            period.label,
+            dateRange,
+            period.offered ? Math.round(period.offered).toString() : '0',
+            period.ahtCount > 0 ? Math.round(period.aht / period.ahtCount).toString() : '0',
+            period.slCount > 0 ? (period.sl / period.slCount * 100).toFixed(CONFIG.precision) + '%' : '-',
+            period.asaCount > 0 ? Math.round(period.asa / period.asaCount).toString() : '0',
+            period.occupancyCount > 0 ? (period.occupancy / period.occupancyCount * 100).toFixed(CONFIG.precision) + '%' : '-',
+            period.staffed ? Math.round(period.staffed).toString() : '0'
+          ];
+          
+          csvContent += row.join(',') + '\n';
+        });
+      });
+
+      const filename = `forecast_data_${state.dateFrom}_to_${state.dateTo}.csv`;
+      exportToCSV(filename, csvContent);
+    }
+
+    function exportIntervalData() {
+      if (!state.currentIntervalData) {
+        showMessage('No interval data to export', 'error');
+        return;
+      }
+
+      let csvContent = 'Planning Group,Time,Offered,Avg Handle Time,Service Level,Avg Speed Answer,Occupancy,Staffed\n';
+      
+      state.currentIntervalData.forEach(groupData => {
+        groupData.intervals.forEach(interval => {
+          const row = [
+            groupData.groupName,
+            interval.time,
+            interval.offered.toString(),
+            interval.aht.toString(),
+            interval.sl || '-',
+            interval.asa.toString(),
+            interval.occupancy || '-',
+            interval.staffed.toString()
+          ];
+          
+          csvContent += row.join(',') + '\n';
+        });
+      });
+
+      const filename = `interval_data_${state.selectedDayForIntervals}.csv`;
+      exportToCSV(filename, csvContent);
     }
 
     // ===== FIXED Data Aggregation Functions =====
@@ -1304,6 +1420,25 @@
       render15MinTable(period, rawDate);
     }
 
+    function generateAllIntervals() {
+      const intervals = [];
+      for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          intervals.push({
+            time: timeString,
+            offered: 0,
+            aht: 0,
+            sl: '-',
+            asa: 0,
+            occupancy: '-',
+            staffed: 0
+          });
+        }
+      }
+      return intervals;
+    }
+
     function render15MinTable(period, rawDate) {
       const container = document.getElementById('intervalTableContainer');
       const mediaTypeFilter = document.getElementById('mediaType').value;
@@ -1332,13 +1467,47 @@
       const planningGroups = groupsPresent();
       let html = `<h3>15-minute Interval Data for ${period}</h3>`;
       
+      state.currentIntervalData = [];
+      
       planningGroups.forEach(group => {
         const groupData = dayData.data.result.intradayDataGroupings.find(g =>
           (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
           (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
         );
 
+        // Generate all 96 intervals for midnight to midnight
+        const allIntervals = generateAllIntervals();
+        
         if (groupData && groupData.forecastDataPerInterval) {
+          // Map API data to our intervals
+          groupData.forecastDataPerInterval.forEach((interval, index) => {
+            if (index < allIntervals.length) {
+              const forecast = interval.forecast || {};
+              const prediction = interval.performancePrediction || {};
+              
+              allIntervals[index].offered = forecast.offered || 0;
+              allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
+              allIntervals[index].sl = prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-';
+              allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
+              allIntervals[index].occupancy = prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-';
+              allIntervals[index].staffed = forecast.staffed || 0;
+            }
+          });
+
+          // Store for CSV export
+          state.currentIntervalData.push({
+            groupName: group.name,
+            intervals: allIntervals.map(interval => ({
+              time: interval.time,
+              offered: interval.offered,
+              aht: interval.aht,
+              sl: interval.sl,
+              asa: interval.asa,
+              occupancy: interval.occupancy,
+              staffed: interval.staffed
+            }))
+          });
+
           html += `
             <div class="table-container" style="margin-bottom:30px;">
               <table class="consolidated-table">
@@ -1356,27 +1525,16 @@
                 </tr>
           `;
 
-          groupData.forecastDataPerInterval.forEach(interval => {
-            const forecast = interval.forecast || {};
-            const prediction = interval.performancePrediction || {};
-            
-            const time = interval.time || '';
-            const offered = forecast.offered || 0;
-            const aht = forecast.averageHandleTimeSeconds || 0;
-            const sl = prediction?.serviceLevelPercent;
-            const asa = prediction?.averageSpeedOfAnswerSeconds;
-            const occupancy = prediction?.occupancyPercent;
-            const staffed = forecast.staffed || 0;
-
+          allIntervals.forEach(interval => {
             html += `
               <tr>
-                <td>${time}</td>
-                <td>${formatNumber(offered)}</td>
-                <td>${formatTime(aht)}</td>
-                <td>${formatPercentage(sl)}</td>
-                <td>${formatTime(asa)}</td>
-                <td>${formatPercentage(occupancy)}</td>
-                <td>${formatNumber(staffed)}</td>
+                <td>${interval.time}</td>
+                <td>${formatNumber(interval.offered)}</td>
+                <td>${formatTime(interval.aht)}</td>
+                <td>${interval.sl}</td>
+                <td>${formatTime(interval.asa)}</td>
+                <td>${interval.occupancy}</td>
+                <td>${formatNumber(interval.staffed)}</td>
               </tr>
             `;
           });
@@ -1709,6 +1867,10 @@
       document.getElementById('viewType').addEventListener('change', onConfigChange);
       document.getElementById('chartViewType').addEventListener('change', updateCharts);
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
+      
+      // Export buttons
+      document.getElementById('exportForecastBtn').addEventListener('click', exportForecastData);
+      document.getElementById('exportIntervalBtn').addEventListener('click', exportIntervalData);
       
       document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
       document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
