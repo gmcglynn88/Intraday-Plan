@@ -617,6 +617,60 @@
     function aggregateDataByPeriod(data, periodType) {
       console.log(`Aggregating ${data.length} days by ${periodType} view`);
       
+      // For daily view, return individual days without aggregation
+      if (periodType === 'daily') {
+        return data.map(day => {
+          if (!day.date || !day.groupData || day.groupData.length === 0) {
+            return null;
+          }
+          
+          let offered = 0, aht = 0, ahtCount = 0, sl = 0, slCount = 0, 
+              asa = 0, asaCount = 0, occupancy = 0, occupancyCount = 0, staffed = 0;
+          
+          day.groupData.forEach(group => {
+            offered += group.forecast.offered || 0;
+            aht += group.forecast.averageHandleTimeSeconds || 0;
+            ahtCount += (group.forecast.averageHandleTimeSeconds && group.forecast.averageHandleTimeSeconds > 0) ? 1 : 0;
+            
+            if (group.prediction.serviceLevelPercent !== null && group.prediction.serviceLevelPercent !== undefined) {
+              sl += group.prediction.serviceLevelPercent;
+              slCount++;
+            }
+            
+            if (group.prediction.averageSpeedOfAnswerSeconds !== null && group.prediction.averageSpeedOfAnswerSeconds !== undefined) {
+              asa += group.prediction.averageSpeedOfAnswerSeconds;
+              asaCount++;
+            }
+            
+            if (group.prediction.occupancyPercent !== null && group.prediction.occupancyPercent !== undefined) {
+              occupancy += group.prediction.occupancyPercent;
+              occupancyCount++;
+            }
+            
+            staffed += group.forecast.staffed || 0;
+          });
+          
+          return {
+            offered: offered,
+            aht: aht,
+            ahtCount: ahtCount,
+            sl: sl,
+            slCount: slCount,
+            asa: asa,
+            asaCount: asaCount,
+            occupancy: occupancy,
+            occupancyCount: occupancyCount,
+            staffed: staffed,
+            label: `${getDOWFromUK(day.uk)} ${day.uk}`,
+            startDate: new Date(day.date),
+            endDate: new Date(day.date),
+            daysInPeriod: 1,
+            rawDate: day.uk // Store the raw date for interval lookup
+          };
+        }).filter(day => day !== null);
+      }
+      
+      // For weekly and monthly views, use the original aggregation logic
       const aggregated = {};
       
       data.forEach(day => {
@@ -639,7 +693,7 @@
             periodKey = `month-${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
             periodLabel = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
             break;
-          default: // daily
+          default: // daily (already handled above)
             periodKey = `day-${day.raw}`;
             periodLabel = `${getDOWFromUK(day.uk)} ${day.uk}`;
         }
@@ -1075,7 +1129,7 @@
             `${getUKFormattedDate(period.startDate)} - ${getUKFormattedDate(period.endDate)}`;
 
           html += `
-            <tr class="clickable-row" data-period="${period.label}">
+            <tr class="clickable-row" data-period="${period.label}" data-raw-date="${period.rawDate || ''}">
               <td>${period.label}</td>
               <td>${dateRange}</td>
               <td>${formatNumber(period.offered)}</td>
@@ -1111,18 +1165,19 @@
       document.querySelectorAll('.clickable-row').forEach(row => {
         row.addEventListener('click', function() {
           const period = this.getAttribute('data-period');
-          showIntervalData(period);
+          const rawDate = this.getAttribute('data-raw-date');
+          showIntervalData(period, rawDate);
         });
       });
     }
 
-    function showIntervalData(period) {
+    function showIntervalData(period, rawDate) {
       state.selectedDayForIntervals = period;
       setActiveTab('interval');
-      render15MinTable(period);
+      render15MinTable(period, rawDate);
     }
 
-    function render15MinTable(period) {
+    function render15MinTable(period, rawDate) {
       const container = document.getElementById('intervalTableContainer');
       const mediaTypeFilter = document.getElementById('mediaType').value;
       
@@ -1131,14 +1186,17 @@
         return;
       }
 
-      // Extract the date from the period label (e.g., "Mon 01/01/2024")
-      const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
-      if (!dateMatch) {
-        container.innerHTML = '<div class="no-data">Could not parse date from period</div>';
-        return;
+      // Try to find the day data using rawDate if available, otherwise parse from period
+      let dayData;
+      if (rawDate) {
+        dayData = state.dateRangeData.find(d => d.uk === rawDate);
+      } else {
+        const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
+        if (dateMatch) {
+          dayData = state.dateRangeData.find(d => d.uk === dateMatch[1]);
+        }
       }
 
-      const dayData = state.dateRangeData.find(d => d.uk === dateMatch[1]);
       if (!dayData || !dayData.data?.result?.intradayDataGroupings) {
         container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
         return;
