@@ -6,11 +6,464 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* ... (keep all the same CSS styles) ... */
+    :root {
+      --primary-color: #63AB8F;
+      --secondary-color: #4A8C7D;
+      --border-color: #DEE2E6;
+      --light-bg: #F8F9FA;
+      --card-bg: #FFFFFF;
+      --text-color: #2C3E50;
+      --text-light: #6C757D;
+    }
+
+    body {
+      font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+      margin: 20px;
+      padding: 20px;
+      max-width: 1400px;
+      background: var(--light-bg);
+      color: var(--text-color);
+    }
+
+    #logo-container {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #logo {
+      width: 300px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    input, select, button, textarea {
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background: var(--primary-color);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+      border: none;
+    }
+
+    button:hover {
+      background: var(--secondary-color);
+    }
+
+    button:disabled {
+      background: var(--text-light);
+      cursor: not-allowed;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      align-items: end;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      min-height: 82px;
+    }
+
+    .full-width-btn {
+      width: 100%;
+      padding: 14px 18px;
+      font-size: 16px;
+      margin-top: 0;
+    }
+
+    .muted {
+      color: var(--text-light);
+      font-size: 12px;
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      color: var(--secondary-color);
+    }
+
+    #messageContainer {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .error-message {
+      color: #b4231a;
+      background: #fee2e2;
+      border: 1px solid #fecaca;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .success-message {
+      color: #14532d;
+      background: #dcfce7;
+      border: 1px solid #bbf7d0;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .info-message {
+      color: #6b4e16;
+      background: #fff7ed;
+      border: 1px solid #ffedd5;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    /* Table Styling */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    th {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 600;
+    }
+
+    tr:hover {
+      background-color: rgba(99, 171, 143, 0.05);
+    }
+
+    .consolidated-table th.group-header {
+      background-color: var(--secondary-color);
+      text-align: center;
+    }
+
+    .consolidated-table th.sub-header {
+      background-color: rgba(99, 171, 143, 0.8);
+    }
+
+    .weekly-totals-row {
+      background-color: rgba(99, 171, 143, 0.1);
+      font-weight: 600;
+    }
+
+    .weekly-totals-row td {
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    /* Tab Styling */
+    .tab {
+      display: inline-block;
+      padding: 12px 20px;
+      margin-right: 10px;
+      background: #eee;
+      cursor: pointer;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+
+    .tab.active {
+      background: var(--primary-color);
+      color: white;
+      font-weight: 600;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .no-data {
+      color: var(--text-light);
+      font-style: italic;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .loading {
+      color: var(--text-light);
+      font-style: italic;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      margin-top: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1px;
+    }
+
+    .metrics-section {
+      margin-bottom: 30px;
+    }
+
+    .metrics-section h3 {
+      color: var(--secondary-color);
+      margin-bottom: 15px;
+      border-bottom: 2px solid var(--primary-color);
+      padding-bottom: 5px;
+    }
+
+    /* Chart Styles */
+    .chart-container {
+      margin: 20px 0;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      height: 400px;
+    }
+
+    .chart-controls {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .chart-controls select {
+      width: auto;
+      min-width: 200px;
+    }
+
+    /* Clickable rows */
+    .clickable-row {
+      cursor: pointer;
+    }
+
+    .clickable-row:hover {
+      background-color: rgba(99, 171, 143, 0.1) !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
+        margin: 10px;
+        padding: 10px;
+      }
+      
+      .card {
+        padding: 16px;
+      }
+      
+      .controls {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .tab {
+        padding: 10px 15px;
+        font-size: 14px;
+      }
+      
+      .chart-controls {
+        flex-direction: column;
+      }
+      
+      .chart-controls select {
+        width: 100%;
+      }
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e9ecef;
+      border-radius: 2px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary-color);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .auth-container {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .auth-button {
+      display: inline-block;
+      background: var(--primary-color);
+      color: white;
+      padding: 15px 30px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      margin: 20px 0;
+    }
+
+    .auth-button:hover {
+      background: var(--secondary-color);
+    }
   </style>
 </head>
 <body>
-  <!-- ... (keep all the same HTML structure) ... -->
+  <div id="logo-container">
+    <img id="logo" src="https://raw.githubusercontent.com/gmcglynn88/Management-Unit-Search/main/Consultinglogo%20(2).png" alt="Company Logo">
+  </div>
+
+  <h1>Intraday Forecast Dashboard</h1>
+
+  <div id="authCard" class="card">
+    <div id="auth-message" class="info-message">Authenticating with PureCloud...</div>
+  </div>
+
+  <!-- Debug (shows only when ?debug=1 is in the URL) -->
+  <div id="authDebug" class="card" style="display:none">
+    <h2 class="section-title">Auth debug</h2>
+    <p class="muted">This block appears when you add <code>?debug=1</code> to the page URL.</p>
+    <pre id="authDump" class="debug"></pre>
+    <button id="signinBtn">Sign in with Genesys</button>
+  </div>
+
+  <div id="appContent" style="display:none;">
+    <div id="messageContainer"></div>
+
+    <div class="card">
+      <h2 class="section-title">Configuration</h2>
+      <div class="controls">
+        <div class="control-group">
+          <label for="businessUnitSelect">Business Unit:</label>
+          <select id="businessUnitSelect" disabled>
+            <option value="">-- Loading Business Units --</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="planningGroup">Planning Group:</label>
+          <select id="planningGroup" disabled>
+            <option value="">-- Select Business Unit First --</option>
+          </select>
+          <div class="muted">Choose "All planning groups" to see separate tables per PG.</div>
+        </div>
+        <div class="control-group">
+          <label for="dateFrom">Date From:</label>
+          <input type="date" id="dateFrom" class="calendar-input">
+        </div>
+        <div class="control-group">
+          <label for="dateTo">Date To:</label>
+          <input type="date" id="dateTo" class="calendar-input">
+        </div>
+        <div class="control-group">
+          <label for="mediaType">Media Type:</label>
+          <select id="mediaType">
+            <option value="">-- All Media Types --</option>
+            <option value="Voice">Voice</option>
+            <option value="Message">Message</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>&nbsp;</label>
+          <button id="loadDataBtn" class="full-width-btn" disabled>
+            Load Forecast Data
+          </button>
+          <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+      <div style="margin-bottom: 20px;">
+        <div id="tabs">
+          <div id="dailyTabButton" class="tab active">Forecast Data</div>
+          <div id="intervalTabButton" class="tab">Interval Data</div>
+          <div id="chartsTabButton" class="tab">Charts & Analytics</div>
+        </div>
+      </div>
+      
+      <div id="dailyTab" class="tab-content active">
+        <div class="chart-controls">
+          <div>
+            <label for="viewType">View Type:</label>
+            <select id="viewType">
+              <option value="daily">Daily View</option>
+              <option value="weekly">Weekly View</option>
+              <option value="monthly">Monthly View</option>
+            </select>
+          </div>
+        </div>
+        <h2 class="section-title">Forecast Data</h2>
+        <div id="weeklySummary" class="loading">Select date range and click "Load Forecast Data" to view forecast and predictions</div>
+        <div class="metrics-section" id="consolidatedSection" style="display: none;">
+          <h3>📊 Forecast & Performance Predictions</h3>
+          <div id="consolidatedTableContainer"></div>
+        </div>
+      </div>
+      
+      <div id="intervalTab" class="tab-content">
+        <h2 class="section-title">15-min Interval Data</h2>
+        <div id="intervalTableContainer" class="loading">Click on a day in the Forecast Data tab to view interval data</div>
+      </div>
+
+      <div id="chartsTab" class="tab-content">
+        <h2 class="section-title">Charts & Analytics</h2>
+        <div class="chart-controls">
+          <div>
+            <label for="chartViewType">View Type:</label>
+            <select id="chartViewType">
+              <option value="daily">Daily View</option>
+              <option value="weekly">Weekly View</option>
+              <option value="monthly">Monthly View</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="metricsChart"></canvas>
+        </div>
+        <div id="chartsDataContainer" class="loading">Load forecast data to view charts</div>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ===== Configuration =====
