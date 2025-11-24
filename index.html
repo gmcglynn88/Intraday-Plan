@@ -170,15 +170,6 @@
       background-color: rgba(99, 171, 143, 0.05);
     }
 
-    .th-dow {
-      background: var(--secondary-color);
-      font-weight: 700;
-    }
-
-    .th-date {
-      background: rgba(99,171,143,.85);
-    }
-
     .consolidated-table th.group-header {
       background-color: var(--secondary-color);
       text-align: center;
@@ -195,14 +186,6 @@
 
     .weekly-totals-row td {
       border-bottom: 2px solid var(--primary-color);
-    }
-
-    .future-date {
-      background-color: rgba(248, 249, 250, 0.5);
-    }
-
-    .past-date {
-      opacity: 0.7;
     }
 
     /* Tab Styling */
@@ -322,6 +305,22 @@
         width: 100%;
       }
     }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e9ecef;
+      border-radius: 2px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary-color);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
   </style>
 </head>
 <body>
@@ -363,26 +362,13 @@
           <input type="date" id="dateTo" class="calendar-input">
         </div>
         <div class="control-group">
-          <label for="viewType">View Type:</label>
-          <select id="viewType">
-            <option value="daily">Daily View</option>
-            <option value="weekly">Weekly View</option>
-            <option value="monthly">Monthly View</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <label for="mediaType">Media Type:</label>
-          <select id="mediaType">
-            <option value="">-- All Media Types --</option>
-            <option value="Voice">Voice</option>
-            <option value="Message">Message</option>
-          </select>
-        </div>
-        <div class="control-group">
           <label>&nbsp;</label>
           <button id="loadDataBtn" class="full-width-btn" disabled>
             Load Forecast Data
           </button>
+          <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -398,6 +384,16 @@
       </div>
       
       <div id="dailyTab" class="tab-content active">
+        <div class="chart-controls">
+          <div>
+            <label for="viewType">View Type:</label>
+            <select id="viewType">
+              <option value="daily">Daily View</option>
+              <option value="weekly">Weekly View</option>
+              <option value="monthly">Monthly View</option>
+            </select>
+          </div>
+        </div>
         <h2 class="section-title">Forecast Data</h2>
         <div id="weeklySummary" class="loading">Select date range and click "Load Forecast Data" to view forecast and predictions</div>
         <div class="metrics-section" id="consolidatedSection" style="display: none;">
@@ -437,7 +433,9 @@
       clientId: 'fe305808-b368-4547-8af9-325d28d552bb',
       region: 'mypurecloud.ie',
       timeFormat: 'seconds',
-      precision: 1
+      precision: 1,
+      maxDaysPerRequest: 7, // Limit to avoid rate limiting
+      delayBetweenRequests: 500 // ms between API calls
     };
 
     const DEBUG = new URLSearchParams(window.location.search).has('debug');
@@ -453,7 +451,8 @@
       dateTo: null,
       viewType: 'daily',
       charts: {},
-      selectedDayForIntervals: null
+      selectedDayForIntervals: null,
+      isDataLoaded: false
     };
 
     // ===== Utility Functions =====
@@ -474,11 +473,6 @@
         return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`;
       }
       return seconds + 's';
-    }
-
-    function formatHours(seconds) {
-      if (seconds === null || seconds === undefined) return '-';
-      return (seconds / 3600).toFixed(CONFIG.precision) + 'h';
     }
 
     function formatNumber(num) {
@@ -519,7 +513,8 @@
       while (current <= end) {
         dates.push({
           raw: isoDate(current),
-          uk: getUKFormattedDate(current)
+          uk: getUKFormattedDate(current),
+          date: new Date(current)
         });
         current.setDate(current.getDate() + 1);
       }
@@ -532,7 +527,6 @@
       
       per.forEach(x => {
         if (!x) return;
-        // Check performance prediction data in intervals
         if (x.performancePrediction && x.performancePrediction.serviceLevelPercent !== undefined) { 
           slSum += x.performancePrediction.serviceLevelPercent; 
           slCnt++; 
@@ -555,7 +549,6 @@
     }
 
     function getPerformancePredictionData(groupData) {
-      // First try to get from performancePredictionDataSummary
       if (groupData.performancePredictionDataSummary) {
         const pred = groupData.performancePredictionDataSummary;
         return {
@@ -565,7 +558,6 @@
         };
       }
       
-      // If not available, compute from interval data
       return computePredictionFallback(groupData);
     }
 
@@ -592,19 +584,25 @@
       const aggregated = {};
       
       data.forEach(day => {
+        if (!day.date) return;
+        
         let periodKey;
-        const date = new Date(day.raw);
+        let periodLabel;
+        const date = day.date;
         
         switch (periodType) {
           case 'weekly':
             const weekStart = getMonday(date);
             periodKey = weekStart.toISOString().split('T')[0];
+            periodLabel = `WC ${getUKFormattedDate(weekStart)}`;
             break;
           case 'monthly':
-            periodKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+            periodKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            periodLabel = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
             break;
           default: // daily
             periodKey = day.raw;
+            periodLabel = day.uk;
         }
         
         if (!aggregated[periodKey]) {
@@ -619,15 +617,17 @@
             occupancy: 0,
             occupancyCount: 0,
             staffed: 0,
-            label: periodType === 'weekly' ? `WC ${getUKFormattedDate(getMonday(date))}` : 
-                   periodType === 'monthly' ? date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) :
-                   day.uk,
-            startRaw: periodType === 'daily' ? day.raw : periodKey,
-            endRaw: periodType === 'daily' ? day.raw : periodKey
+            label: periodLabel,
+            startDate: day.date,
+            endDate: day.date
           };
         }
         
         const period = aggregated[periodKey];
+        
+        // Update date range for this period
+        if (day.date < period.startDate) period.startDate = day.date;
+        if (day.date > period.endDate) period.endDate = day.date;
         
         // Sum up all metrics
         day.groupData?.forEach(group => {
@@ -792,6 +792,9 @@
           if (response.status === 404) {
             return { date, data: null, error: 'No forecast data available for this date' };
           }
+          if (response.status === 429) {
+            throw new Error('Rate limit exceeded - please try a smaller date range');
+          }
           const errorText = await response.text();
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
@@ -825,17 +828,63 @@
 
     async function fetchDataForDateRange(startDate, endDate) {
       const days = getDateRange(startDate, endDate);
+      
+      // Check if date range is too large
+      if (days.length > 30) {
+        showMessage(`Warning: Large date range (${days.length} days). This may take a while and could hit rate limits.`, 'info');
+      }
+      
       showMessage(`Loading forecast data for ${days.length} days...`, 'info');
       
-      state.dateRangeData = await Promise.all(
-        days.map(day => fetchIntradayData(day.raw).then(result => ({ 
-          ...result, 
-          uk: day.uk,
-          // Pre-process group data for easier access
-          groupData: processDayData(result.data)
-        })))
-      );
+      // Show progress bar
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      progressBar.style.display = 'block';
+      progressFill.style.width = '0%';
       
+      state.dateRangeData = [];
+      
+      // Process in smaller batches to avoid rate limiting
+      const batchSize = CONFIG.maxDaysPerRequest;
+      let completed = 0;
+      
+      for (let i = 0; i < days.length; i += batchSize) {
+        const batch = days.slice(i, i + batchSize);
+        
+        const batchResults = await Promise.all(
+          batch.map(async (day, index) => {
+            // Add delay between requests in the same batch
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenRequests));
+            }
+            
+            const result = await fetchIntradayData(day.raw);
+            
+            // Update progress
+            completed++;
+            progressFill.style.width = `${(completed / days.length) * 100}%`;
+            
+            return {
+              ...result, 
+              uk: day.uk,
+              date: day.date,
+              groupData: processDayData(result.data)
+            };
+          })
+        );
+        
+        state.dateRangeData.push(...batchResults);
+        
+        // Add delay between batches
+        if (i + batchSize < days.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      // Hide progress bar
+      progressBar.style.display = 'none';
+      
+      state.isDataLoaded = true;
       refreshMediaTypeOptions();
       renderAllData();
       showMessage('Forecast data loaded successfully!', 'success');
@@ -862,7 +911,7 @@
     }
 
     function onConfigChange() {
-      if (state.dateRangeData.length > 0) {
+      if (state.isDataLoaded) {
         renderAllData();
         updateCharts();
       }
@@ -893,7 +942,6 @@
       
       state.dateFrom = dateFrom;
       state.dateTo = dateTo;
-      state.viewType = document.getElementById('viewType').value;
       
       document.getElementById('loadDataBtn').disabled = true;
       document.getElementById('loadDataBtn').textContent = 'Loading...';
@@ -938,6 +986,8 @@
         return;
       }
 
+      const viewType = document.getElementById('viewType').value;
+      
       let html = '';
       
       planningGroups.forEach(group => {
@@ -945,7 +995,7 @@
           <div class="table-container" style="margin-bottom:30px;">
             <table class="consolidated-table">
               <tr>
-                <th colspan="8" class="group-header">Planning Group: ${group.name} - ${state.viewType.toUpperCase()} VIEW</th>
+                <th colspan="8" class="group-header">Planning Group: ${group.name} - ${viewType.toUpperCase()} VIEW</th>
               </tr>
               <tr>
                 <th class="sub-header">Period</th>
@@ -965,7 +1015,7 @@
           groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
         }));
 
-        const aggregatedData = aggregateDataByPeriod(groupData, state.viewType);
+        const aggregatedData = aggregateDataByPeriod(groupData, viewType);
         
         let grandTotals = { offered: 0, aht: 0, ahtCount: 0, sl: 0, slCount: 0, asa: 0, asaCount: 0, occupancy: 0, occupancyCount: 0, staffed: 0 };
 
@@ -982,10 +1032,14 @@
           grandTotals.occupancyCount += period.occupancyCount;
           grandTotals.staffed += period.staffed;
 
+          const dateRange = viewType === 'daily' ? 
+            period.label : 
+            `${getUKFormattedDate(period.startDate)} - ${getUKFormattedDate(period.endDate)}`;
+
           html += `
             <tr class="clickable-row" data-period="${period.label}">
               <td>${period.label}</td>
-              <td>${state.viewType === 'daily' ? period.label : `${getUKFormattedDate(new Date(period.startRaw))} - ${getUKFormattedDate(new Date(period.endRaw))}`}</td>
+              <td>${dateRange}</td>
               <td>${formatNumber(period.offered)}</td>
               <td>${formatTime(period.ahtCount > 0 ? period.aht / period.ahtCount : 0)}</td>
               <td>${formatPercentage(period.slCount > 0 ? period.sl / period.slCount : null)}</td>
@@ -1150,7 +1204,7 @@
 
     // ===== Chart Functions =====
     function updateCharts() {
-      if (state.dateRangeData.length === 0) {
+      if (!state.isDataLoaded) {
         document.getElementById('chartsDataContainer').innerHTML = '<div class="no-data">Load forecast data to view charts</div>';
         return;
       }
