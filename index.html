@@ -253,6 +253,7 @@
       background: white;
       border-radius: 8px;
       border: 1px solid var(--border-color);
+      height: 400px;
     }
 
     .chart-controls {
@@ -448,11 +449,11 @@
         <h2 class="section-title">Charts & Analytics</h2>
         <div class="chart-controls">
           <div>
-            <label for="chartView">View:</label>
-            <select id="chartView">
+            <label for="chartViewType">View Type:</label>
+            <select id="chartViewType">
               <option value="daily">Daily View</option>
-              <option value="weekly">Weekly Summary</option>
-              <option value="monthly">Monthly Summary</option>
+              <option value="weekly">Weekly View</option>
+              <option value="monthly">Monthly View</option>
             </select>
           </div>
         </div>
@@ -1260,12 +1261,12 @@
         return;
       }
 
-      const chartView = document.getElementById('chartView').value;
+      const chartViewType = document.getElementById('chartViewType').value;
       
-      renderChart(chartView);
+      renderChart(chartViewType);
     }
 
-    function renderChart(chartView) {
+    function renderChart(chartViewType) {
       const ctx = document.getElementById('metricsChart').getContext('2d');
       
       // Destroy existing chart
@@ -1285,13 +1286,19 @@
       const offeredData = [];
       const ahtData = [];
 
-      // Use the same aggregation as the table
+      // Use the same aggregation as the table but with the chart's view type
       const groupData = state.dateRangeData.map(day => ({
         ...day,
         groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
       }));
 
-      const aggregatedData = aggregateDataByPeriod(groupData, chartView);
+      const aggregatedData = aggregateDataByPeriod(groupData, chartViewType);
+      
+      console.log('Chart data aggregation:', {
+        chartViewType,
+        aggregatedDataCount: aggregatedData.length,
+        aggregatedData: aggregatedData
+      });
       
       aggregatedData.forEach(period => {
         labels.push(period.label);
@@ -1327,6 +1334,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           interaction: {
             mode: 'index',
             intersect: false,
@@ -1335,7 +1343,23 @@
           plugins: {
             title: {
               display: true,
-              text: `Offered Volume vs Average Handle Time - ${chartView} View`
+              text: `Offered Volume vs Average Handle Time - ${chartViewType} View`
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.dataset.yAxisID === 'y1') {
+                    label += formatTime(context.parsed.y);
+                  } else {
+                    label += formatNumber(context.parsed.y);
+                  }
+                  return label;
+                }
+              }
             }
           },
           scales: {
@@ -1437,8 +1461,8 @@
       document.getElementById('planningGroup').addEventListener('change', onPlanningGroupChange);
       document.getElementById('mediaType').addEventListener('change', onConfigChange);
       document.getElementById('viewType').addEventListener('change', onConfigChange);
+      document.getElementById('chartViewType').addEventListener('change', updateCharts);
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
-      document.getElementById('chartView').addEventListener('change', updateCharts);
       
       // Tab navigation
       document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
