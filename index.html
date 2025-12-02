@@ -557,7 +557,7 @@
             </div>
           </div>
           <div class="rate-limit-warning" id="rateLimitWarning">
-            <strong>⚠️ Large Date Range Detected:</strong> Loading more than 30 days may take longer. Please Wait
+            <strong>⚠️ Large Date Range Detected:</strong> Loading more than 30 days may take longer. Please Wait. . .
           </div>
         </div>
       </div>
@@ -890,7 +890,7 @@
       }
 
       const planningGroups = groupsPresent();
-      let csvContent = 'Planning Group,Period,Date Range,Offered,Avg Handle Time,Service Level,Avg Speed Answer,Occupancy,Staffed\n';
+      let csvContent = 'Planning Group,Period,,Offered,Avg Handle Time,Service Level,Avg Speed Answer,Occupancy,Staffed\n';
       
       planningGroups.forEach(group => {
         const groupData = state.dateRangeData.map(day => ({
@@ -1460,7 +1460,6 @@
               </tr>
               <tr>
                 <th class="sub-header">Period</th>
-                <th class="sub-header">Date Range</th>
                 <th class="sub-header">Offered</th>
                 <th class="sub-header">Avg Handle Time</th>
                 <th class="sub-header">Service Level</th>
