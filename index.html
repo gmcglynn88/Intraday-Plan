@@ -277,6 +277,54 @@
       background-color: rgba(99, 171, 143, 0.1) !important;
     }
 
+    /* Progress bar styles */
+    .progress-container {
+      width: 100%;
+      margin: 20px 0;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+      width: 0%;
+      transition: width 0.3s ease;
+      position: relative;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-weight: 600;
+      font-size: 12px;
+      text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+    }
+
+    .progress-details {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 5px;
+      text-align: center;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
       body {
@@ -305,22 +353,6 @@
       .chart-controls select {
         width: 100%;
       }
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 4px;
-      background: #e9ecef;
-      border-radius: 2px;
-      margin-top: 5px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--primary-color);
-      width: 0%;
-      transition: width 0.3s ease;
     }
 
     .auth-container {
@@ -438,6 +470,17 @@
     .export-btn:hover {
       background: var(--primary-color);
     }
+
+    .rate-limit-warning {
+      background: #fff7ed;
+      border: 1px solid #ffedd5;
+      color: #6b4e16;
+      padding: 10px 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+      font-size: 13px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -499,8 +542,22 @@
           <button id="loadDataBtn" class="full-width-btn" disabled>
             Load Forecast Data
           </button>
-          <div class="progress-bar" id="progressBar" style="display: none;">
-            <div class="progress-fill" id="progressFill"></div>
+          <div class="progress-container" id="progressContainer" style="display: none;">
+            <div class="progress-header">
+              <span id="progressStatus">Loading data...</span>
+              <span id="progressPercentage">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill">
+                <div class="progress-text" id="progressText">0%</div>
+              </div>
+            </div>
+            <div class="progress-details" id="progressDetails">
+              Processed: <span id="processedCount">0</span> of <span id="totalCount">0</span> days
+            </div>
+          </div>
+          <div class="rate-limit-warning" id="rateLimitWarning">
+            <strong>⚠️ Large Date Range Detected:</strong> Loading more than 30 days may take several minutes due to API rate limits. Data will be fetched in batches with automatic delays.
           </div>
         </div>
       </div>
@@ -598,8 +655,11 @@
       region: 'mypurecloud.ie',
       timeFormat: 'seconds',
       precision: 1,
-      maxDaysPerRequest: 7,
-      delayBetweenRequests: 500
+      maxDaysPerRequest: 7, // Maximum days to fetch in a single batch
+      delayBetweenRequests: 500, // Delay between individual day requests
+      delayBetweenBatches: 2000, // Longer delay between batches
+      maxConcurrentRequests: 3, // Maximum concurrent requests
+      progressUpdateInterval: 100 // Update progress every 100ms
     };
 
     const DEBUG = new URLSearchParams(window.location.search).has('debug');
@@ -619,7 +679,9 @@
       isDataLoaded: false,
       currentChartType: 'volume',
       timeFormat: 'hhmmss', // 'hhmmss' or 'seconds'
-      currentIntervalData: null
+      currentIntervalData: null,
+      isFetchingData: false,
+      fetchCancelled: false
     };
 
     // ===== Utility Functions =====
@@ -766,6 +828,43 @@
       } else {
         label.textContent = 'HH:MM:SS';
         intervalLabel.textContent = 'HH:MM:SS';
+      }
+    }
+
+    // ===== Progress Bar Functions =====
+    function showProgressBar() {
+      const container = document.getElementById('progressContainer');
+      container.style.display = 'block';
+      
+      // Show rate limit warning for large date ranges
+      const warning = document.getElementById('rateLimitWarning');
+      const dateFrom = new Date(document.getElementById('dateFrom').value);
+      const dateTo = new Date(document.getElementById('dateTo').value);
+      const dayCount = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24)) + 1;
+      
+      if (dayCount > 30) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+
+    function hideProgressBar() {
+      const container = document.getElementById('progressContainer');
+      container.style.display = 'none';
+    }
+
+    function updateProgress(current, total, status = '') {
+      const percentage = Math.round((current / total) * 100);
+      
+      document.getElementById('progressPercentage').textContent = `${percentage}%`;
+      document.getElementById('progressText').textContent = `${percentage}%`;
+      document.getElementById('progressFill').style.width = `${percentage}%`;
+      document.getElementById('processedCount').textContent = current;
+      document.getElementById('totalCount').textContent = total;
+      
+      if (status) {
+        document.getElementById('progressStatus').textContent = status;
       }
     }
 
@@ -1044,7 +1143,7 @@
       throw new Error('Intraday operation timed out');
     }
 
-    // ===== Data Fetching =====
+    // ===== Data Fetching with Rate Limiting =====
     async function fetchBusinessUnits() {
       try {
         const businessUnits = await fetchPaginatedData(
@@ -1166,59 +1265,88 @@
 
     async function fetchDataForDateRange(startDate, endDate) {
       const days = getDateRange(startDate, endDate);
+      const totalDays = days.length;
       
-      if (days.length > 30) {
-        showMessage(`Warning: Large date range (${days.length} days). This may take a while and could hit rate limits.`, 'info');
+      if (state.isFetchingData) {
+        showMessage('A data fetch is already in progress', 'error');
+        return;
       }
       
-      showMessage(`Loading forecast data for ${days.length} days...`, 'info');
-      
-      const progressBar = document.getElementById('progressBar');
-      const progressFill = document.getElementById('progressFill');
-      progressBar.style.display = 'block';
-      progressFill.style.width = '0%';
-      
+      state.isFetchingData = true;
+      state.fetchCancelled = false;
       state.dateRangeData = [];
       
-      const batchSize = CONFIG.maxDaysPerRequest;
-      let completed = 0;
+      showProgressBar();
+      updateProgress(0, totalDays, 'Starting data fetch...');
       
-      for (let i = 0; i < days.length; i += batchSize) {
-        const batch = days.slice(i, i + batchSize);
+      try {
+        if (totalDays > 30) {
+          showMessage(`Fetching ${totalDays} days of forecast data. This may take several minutes due to API rate limits.`, 'info');
+        }
         
-        const batchResults = await Promise.all(
-          batch.map(async (day, index) => {
-            if (index > 0) {
-              await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenRequests));
-            }
+        // Process days in batches with rate limiting
+        const batchSize = CONFIG.maxDaysPerRequest;
+        let processed = 0;
+        
+        for (let i = 0; i < totalDays; i += batchSize) {
+          if (state.fetchCancelled) {
+            showMessage('Data fetch cancelled', 'info');
+            break;
+          }
+          
+          const batch = days.slice(i, Math.min(i + batchSize, totalDays));
+          const batchResults = [];
+          
+          updateProgress(processed, totalDays, `Fetching batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(totalDays/batchSize)}...`);
+          
+          // Process batch with limited concurrency
+          for (let j = 0; j < batch.length; j++) {
+            if (state.fetchCancelled) break;
+            
+            const day = batch[j];
+            updateProgress(processed + j, totalDays, `Fetching ${day.uk}...`);
             
             const result = await fetchIntradayData(day.raw);
-            
-            completed++;
-            progressFill.style.width = `${(completed / days.length) * 100}%`;
-            
-            return {
+            batchResults.push({
               ...result, 
               uk: day.uk,
               date: day.date,
               groupData: processDayData(result.data)
-            };
-          })
-        );
-        
-        state.dateRangeData.push(...batchResults);
-        
-        if (i + batchSize < days.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+            });
+            
+            // Small delay between individual requests
+            if (j < batch.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenRequests));
+            }
+            
+            processed++;
+            updateProgress(processed, totalDays);
+          }
+          
+          state.dateRangeData.push(...batchResults);
+          
+          // Longer delay between batches to avoid rate limits
+          if (i + batchSize < totalDays && !state.fetchCancelled) {
+            updateProgress(processed, totalDays, 'Pausing between batches to avoid rate limits...');
+            await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenBatches));
+          }
         }
+        
+        if (!state.fetchCancelled) {
+          state.isDataLoaded = true;
+          refreshMediaTypeOptions();
+          renderAllData();
+          showMessage(`Successfully loaded ${processed} days of forecast data!`, 'success');
+        }
+        
+      } catch (error) {
+        showMessage('Error fetching data: ' + error.message, 'error');
+      } finally {
+        state.isFetchingData = false;
+        hideProgressBar();
+        document.getElementById('loadDataBtn').disabled = false;
+        document.getElementById('loadDataBtn').textContent = 'Load Forecast Data';
       }
-      
-      progressBar.style.display = 'none';
-      
-      state.isDataLoaded = true;
-      refreshMediaTypeOptions();
-      renderAllData();
-      showMessage('Forecast data loaded successfully!', 'success');
     }
 
     // ===== UI Event Handlers =====
@@ -1272,8 +1400,10 @@
       }
       
       const dayCount = Math.ceil((new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)) + 1;
-      if (dayCount > 90) {
-        showMessage('Please select a date range of 90 days or less', 'error');
+      
+      // Removed the 90-day restriction
+      if (dayCount > 365) {
+        showMessage('Please select a date range of 365 days or less for performance reasons', 'info');
         return;
       }
       
@@ -1284,11 +1414,7 @@
       document.getElementById('loadDataBtn').textContent = 'Loading...';
       document.getElementById('consolidatedSection').style.display = 'none';
       
-      fetchDataForDateRange(dateFrom, dateTo).finally(() => {
-        document.getElementById('loadDataBtn').disabled = false;
-        document.getElementById('loadDataBtn').textContent = 'Load Forecast Data';
-        updateCharts();
-      });
+      fetchDataForDateRange(dateFrom, dateTo);
     }
 
     function setActiveTab(tabName) {
