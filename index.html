@@ -651,12 +651,11 @@
 
     function formatPercentage(num) {
       if (num === null || num === undefined) return '-';
-      // The API returns decimals (0.1291 = 12.91%), so we multiply by 100 to get percentage
-      const value = num * 100;
-      // Cap at 100% for display to handle any API issues
-      const cappedValue = Math.min(value, 100);
-      // Round to 1 decimal place
-      return Number.isFinite(cappedValue) ? cappedValue.toFixed(CONFIG.precision) + '%' : '-';
+      // FIXED: The API is already returning percentages (77.5, 87.6, etc.), not decimals
+      // So we don't multiply by 100, just format it
+      const value = num; // Already a percentage
+      // Remove the cap at 100% since values might be above 100
+      return Number.isFinite(value) ? value.toFixed(CONFIG.precision) + '%' : '-';
     }
 
     function getUKFormattedDate(date) {
@@ -727,7 +726,7 @@
       
       if (groupData.performancePredictionDataSummary) {
         const pred = groupData.performancePredictionDataSummary;
-        // The API returns percentages as decimals (0.1291 = 12.91%), so we don't divide by 100
+        // FIXED: The API is already returning percentages, not decimals
         return {
           serviceLevelPercent: pred.serviceLevelPercent,
           averageSpeedOfAnswerSeconds: pred.averageSpeedOfAnswerSeconds,
@@ -814,9 +813,9 @@
             dateRange,
             period.offered ? Math.round(period.offered).toString() : '0',
             period.ahtCount > 0 ? Math.round(period.aht / period.ahtCount).toString() : '0',
-            period.slCount > 0 ? (period.sl / period.slCount * 100).toFixed(CONFIG.precision) + '%' : '-',
+            period.slCount > 0 ? (period.sl / period.slCount).toFixed(CONFIG.precision) + '%' : '-',
             period.asaCount > 0 ? Math.round(period.asa / period.asaCount).toString() : '0',
-            period.occupancyCount > 0 ? (period.occupancy / period.occupancyCount * 100).toFixed(CONFIG.precision) + '%' : '-'
+            period.occupancyCount > 0 ? (period.occupancy / period.occupancyCount).toFixed(CONFIG.precision) + '%' : '-'
           ];
           
           csvContent += row.join(',') + '\n';
@@ -1513,7 +1512,8 @@
       planningGroups.forEach(group => {
         console.log('Processing planning group:', group.name, 'ID:', group.id);
         
-        // Find matching group data
+        // FIXED: Handle undefined planningGroupId from API
+        // Find matching group data - if group ID is undefined in API, we should still show the data
         const groupData = dayData.data.result.intradayDataGroupings.find(g => {
           // Filter by media type if specified
           if (mediaTypeFilter && g.mediaType !== mediaTypeFilter) {
@@ -1523,8 +1523,16 @@
           
           // Filter by planning group
           const isAllGroupsSelected = selectedPlanningGroupId === '__ALL__';
+          
+          // If API doesn't provide planningGroupId, we should still show the data
+          // This happens when only one planning group is selected
+          if (!g.planningGroupId) {
+            console.log('API returned undefined planningGroupId, showing data anyway');
+            return true;
+          }
+          
           const groupMatches = isAllGroupsSelected || 
-                              (g.planningGroupId && (g.planningGroupId === group.id || g.planningGroupId === selectedPlanningGroupId));
+                              (g.planningGroupId === group.id || g.planningGroupId === selectedPlanningGroupId);
           
           console.log('Group match check:', {
             groupId: g.planningGroupId,
@@ -1623,6 +1631,7 @@
               <li>Media Type Filter: ${mediaTypeFilter || 'None'}</li>
               <li>Planning Groups in data: ${dayData.data.result.intradayDataGroupings.length}</li>
               <li>Planning groups found: ${planningGroups.length}</li>
+              <li>First grouping data sample: ${JSON.stringify(dayData.data.result.intradayDataGroupings[0] || {}).substring(0, 200)}...</li>
             </ul>
           </div>
         `;
@@ -1716,12 +1725,11 @@
         offeredData.push(period.offered);
         ahtData.push(period.ahtCount > 0 ? period.aht / period.ahtCount : 0);
         
-        // For service level: the API returns decimal (0.1291 = 12.91%), we're already multiplying by 100 in formatPercentage
-        // So for chart, we need to multiply by 100 to get percentage
-        const avgServiceLevel = period.slCount > 0 ? (period.sl / period.slCount) * 100 : null;
+        // Service level is already a percentage from API
+        const avgServiceLevel = period.slCount > 0 ? period.sl / period.slCount : null;
         serviceLevelData.push(avgServiceLevel);
         
-        const avgOccupancy = period.occupancyCount > 0 ? (period.occupancy / period.occupancyCount) * 100 : null;
+        const avgOccupancy = period.occupancyCount > 0 ? period.occupancy / period.occupancyCount : null;
         occupancyData.push(avgOccupancy);
       });
 
