@@ -1352,7 +1352,7 @@
 
         const aggregatedData = aggregateDataByPeriod(groupData, viewType);
         
-        let grandTotals = { offered: 0, aht: 0, ahtCount: 0, sl: 0, slCount: 0, asa: 0, asaCount: 0, occupancy: 0, occupancyCount: 0, staffed: 0 };
+        let grandTotals = { offered: 0, aht: 0, ahtCount = 0, sl = 0, slCount = 0, asa = 0, asaCount = 0, occupancy = 0, occupancyCount = 0, staffed = 0 };
 
         aggregatedData.forEach(period => {
           // Add to grand totals
@@ -1410,6 +1410,7 @@
         row.addEventListener('click', function() {
           const period = this.getAttribute('data-period');
           const rawDate = this.getAttribute('data-raw-date');
+          console.log('Clicked row - period:', period, 'rawDate:', rawDate);
           showIntervalData(period, rawDate);
         });
       });
@@ -1451,50 +1452,106 @@
         return;
       }
 
+      console.log('Looking for interval data for period:', period, 'rawDate:', rawDate);
+      console.log('Available dates in data:', state.dateRangeData.map(d => ({ uk: d.uk, hasData: !!d.data })));
+
       // Try to find the day data using rawDate if available, otherwise parse from period
       let dayData;
+      
+      // First try using rawDate if provided
       if (rawDate) {
-        dayData = state.dateRangeData.find(d => d.uk === rawDate);
-      } else {
+        dayData = state.dateRangeData.find(d => {
+          console.log('Comparing rawDate:', rawDate, 'with d.uk:', d.uk);
+          return d.uk === rawDate;
+        });
+      }
+      
+      // If not found, try to extract date from period string
+      if (!dayData && period) {
+        // The period format is like "Wed 26/11/2025" - extract the date part
         const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
         if (dateMatch) {
-          dayData = state.dateRangeData.find(d => d.uk === dateMatch[1]);
+          const extractedDate = dateMatch[1];
+          console.log('Extracted date from period:', extractedDate);
+          dayData = state.dateRangeData.find(d => {
+            console.log('Comparing extracted date:', extractedDate, 'with d.uk:', d.uk);
+            return d.uk === extractedDate;
+          });
         }
       }
+      
+      // If still not found, try alternative formats
+      if (!dayData) {
+        // Try to find by partial match
+        dayData = state.dateRangeData.find(d => {
+          // Check if period contains the date
+          return period.includes(d.uk) || d.uk.includes(period);
+        });
+      }
 
-      if (!dayData || !dayData.data?.result?.intradayDataGroupings) {
+      if (!dayData) {
+        console.log('Could not find day data for period:', period);
         container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
         return;
       }
 
+      if (!dayData.data?.result?.intradayDataGroupings) {
+        console.log('Found day data but no intradayDataGroupings:', dayData);
+        container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
+        return;
+      }
+
+      console.log('Found day data with intradayDataGroupings:', dayData.data.result.intradayDataGroupings.length, 'groups');
       const planningGroups = groupsPresent();
+      console.log('Planning groups present:', planningGroups);
+      
       let html = `<h3>15-minute Interval Data for ${period}</h3>`;
       
       state.currentIntervalData = [];
       
+      // Track if we found any data
+      let foundData = false;
+      
       planningGroups.forEach(group => {
-        // FIXED: Better filtering logic for planning groups
+        console.log('Processing planning group:', group.name, 'ID:', group.id);
+        
+        // Find matching group data
         const groupData = dayData.data.result.intradayDataGroupings.find(g => {
           // Filter by media type if specified
-          if (mediaTypeFilter && g.mediaType !== mediaTypeFilter) return false;
+          if (mediaTypeFilter && g.mediaType !== mediaTypeFilter) {
+            console.log('Filtered out by media type:', g.mediaType, 'expected:', mediaTypeFilter);
+            return false;
+          }
           
           // Filter by planning group
           const isAllGroupsSelected = selectedPlanningGroupId === '__ALL__';
-          const groupMatches = isAllGroupsSelected || g.planningGroupId === group.id || g.planningGroupId === selectedPlanningGroupId;
+          const groupMatches = isAllGroupsSelected || 
+                              (g.planningGroupId && (g.planningGroupId === group.id || g.planningGroupId === selectedPlanningGroupId));
+          
+          console.log('Group match check:', {
+            groupId: g.planningGroupId,
+            expectedGroupId: group.id,
+            selectedPlanningGroupId,
+            isAllGroupsSelected,
+            groupMatches
+          });
           
           return groupMatches;
         });
 
-        // If no group data found, skip this planning group
         if (!groupData) {
-          console.log(`No interval data found for planning group: ${group.name}`);
+          console.log(`No group data found for: ${group.name}`);
           return;
         }
 
+        console.log('Found group data for:', group.name, 'with intervals:', groupData.forecastDataPerInterval?.length || 0);
+        
         // Generate all 96 intervals for midnight to midnight
         const allIntervals = generateAllIntervals();
         
-        if (groupData.forecastDataPerInterval) {
+        if (groupData.forecastDataPerInterval && groupData.forecastDataPerInterval.length > 0) {
+          foundData = true;
+          
           // Map API data to our intervals
           groupData.forecastDataPerInterval.forEach((interval, index) => {
             if (index < allIntervals.length) {
@@ -1556,11 +1613,25 @@
           });
 
           html += `</table></div>`;
+        } else {
+          console.log('No forecastDataPerInterval for group:', group.name);
         }
       });
 
-      if (html === `<h3>15-minute Interval Data for ${period}</h3>`) {
-        html += '<div class="no-data">No interval data available for this date and planning group</div>';
+      if (!foundData) {
+        console.log('No interval data found for any planning group');
+        html += `
+          <div class="no-data">
+            <p>No interval data available for this date and planning group.</p>
+            <p>Debug info:</p>
+            <ul>
+              <li>Date: ${period}</li>
+              <li>Media Type Filter: ${mediaTypeFilter || 'None'}</li>
+              <li>Planning Groups in data: ${dayData.data.result.intradayDataGroupings.length}</li>
+              <li>Planning groups found: ${planningGroups.length}</li>
+            </ul>
+          </div>
+        `;
       }
 
       container.innerHTML = html;
