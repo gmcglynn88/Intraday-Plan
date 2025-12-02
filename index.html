@@ -55,7 +55,7 @@
       font-size: 14px;
     }
 
-    input, select, button, textarea {
+    input, button, textarea {
       padding: 10px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -498,25 +498,30 @@
       display: none;
     }
 
-    /* Checkbox dropdown styles for configuration section only */
+    /* Checkbox dropdown styles */
     .checkbox-dropdown {
       position: relative;
       width: 100%;
     }
     
+    /* Base dropdown trigger (simpler for non-config areas) */
     .cd-trigger {
       display: flex;
       align-items: center;
       justify-content: space-between;
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      background: #fff;
+      background: #f4f4f4;
       padding: 10px;
       cursor: pointer;
       width: 100%;
       box-sizing: border-box;
       min-height: 42px;
-      font-size: 14px;
+    }
+
+    /* Premium styling only in configuration section */
+    .config-controls .cd-trigger {
+      background: #fff;
     }
     
     .cd-trigger .label {
@@ -525,6 +530,8 @@
       overflow: hidden;
       text-overflow: ellipsis;
       flex: 1;
+      font-size: 14px;
+      padding-top: 1px;
     }
     
     .cd-trigger .count {
@@ -572,7 +579,6 @@
       padding: 8px;
       width: 100%;
       box-sizing: border-box;
-      font-size: 14px;
     }
     
     .cd-actions {
@@ -598,7 +604,6 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 14px;
     }
     
     .cd-selectall label {
@@ -608,11 +613,11 @@
       align-items: center;
       gap: 8px;
       cursor: pointer;
+      width: 100%;
     }
     
     .cd-selectall input[type="checkbox"] {
       width: auto;
-      margin: 0;
     }
     
     .cd-list {
@@ -639,11 +644,7 @@
       font-size: 14px;
     }
     
-    .cd-item input[type="checkbox"] {
-      width: auto;
-      margin: 0;
-    }
-    
+    .cd-item input[type="checkbox"],
     .cd-item input[type="radio"] {
       width: auto;
       margin: 0;
@@ -659,20 +660,13 @@
       justify-content: space-between;
     }
 
-    /* Date inputs styling to match dropdowns */
-    .date-input {
+    /* Standard select styling that matches checkbox dropdowns */
+    .standard-select-container {
+      position: relative;
       width: 100%;
-      padding: 10px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: #fff;
-      font-size: 14px;
-      box-sizing: border-box;
-      min-height: 42px;
     }
-
-    /* Regular select styling */
-    select {
+    
+    .standard-select {
       width: 100%;
       padding: 10px;
       border: 1px solid var(--border-color);
@@ -682,6 +676,45 @@
       box-sizing: border-box;
       min-height: 42px;
       cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232C3E50' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      padding-right: 30px;
+    }
+
+    /* Make all form controls consistent */
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 14px;
+      box-sizing: border-box;
+      min-height: 42px;
+    }
+    
+    input.form-control {
+      cursor: text;
+    }
+    
+    select.form-control {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232C3E50' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      padding-right: 30px;
+    }
+
+    /* Make date inputs match form controls visually */
+    input[type="date"].form-control {
+      appearance: none;
+      background-color: #fff;
+      background-image: none;
     }
   </style>
 </head>
@@ -709,7 +742,8 @@
 
     <div class="card">
       <h2 class="section-title">Configuration</h2>
-      <div class="controls">
+      <!-- Config controls get premium dropdown styling -->
+      <div class="controls config-controls">
         <div class="control-group">
           <label for="businessUnitSelect">Business Unit:</label>
           <div class="checkbox-dropdown" id="businessUnitContainer">
@@ -764,19 +798,37 @@
         </div>
         <div class="control-group">
           <label for="dateFrom">Date From:</label>
-          <input type="date" id="dateFrom" class="date-input">
+          <input type="date" id="dateFrom" class="form-control">
         </div>
         <div class="control-group">
           <label for="dateTo">Date To:</label>
-          <input type="date" id="dateTo" class="date-input">
+          <input type="date" id="dateTo" class="form-control">
         </div>
         <div class="control-group">
-          <label for="mediaTypeSelect">Media Type:</label>
-          <select id="mediaTypeSelect">
-            <option value="all">All Media Types</option>
-            <option value="Voice">Voice</option>
-            <option value="Message">Message</option>
-          </select>
+          <label for="mediaTypeContainer">Media Type:</label>
+          <div id="mediaTypeContainer" class="checkbox-dropdown">
+            <div class="cd-trigger">
+              <span class="label">Select Media Types</span>
+              <span class="count">0 selected</span>
+            </div>
+            <div class="cd-panel">
+              <div class="cd-header">
+                <input type="text" class="cd-search" placeholder="Search media types..." />
+                <div class="cd-actions">
+                  <button type="button" data-cd="clear">Clear</button>
+                </div>
+              </div>
+              <div class="cd-selectall">
+                <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+              </div>
+              <div class="cd-list"></div>
+              <div class="cd-footer">
+                <span data-cd="summary">0 selected</span>
+                <span>Click outside to close</span>
+              </div>
+            </div>
+          </div>
+          <div class="muted">Multiple selection available</div>
         </div>
         <div class="control-group">
           <label>&nbsp;</label>
@@ -810,11 +862,29 @@
         <div class="chart-controls">
           <div>
             <label for="viewType">View Type:</label>
-            <select id="viewType">
-              <option value="daily">Daily View</option>
-              <option value="weekly">Weekly View</option>
-              <option value="monthly">Monthly View</option>
-            </select>
+            <!-- This dropdown is outside config, so uses simpler style -->
+            <div class="checkbox-dropdown" id="viewTypeContainer">
+              <div class="cd-trigger">
+                <span class="label">Select View Type</span>
+                <span class="count">0 selected</span>
+              </div>
+              <div class="cd-panel">
+                <div class="cd-header">
+                  <input type="text" class="cd-search" placeholder="Search view types..." />
+                  <div class="cd-actions">
+                    <button type="button" data-cd="clear">Clear</button>
+                  </div>
+                </div>
+                <div class="cd-selectall">
+                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+                </div>
+                <div class="cd-list"></div>
+                <div class="cd-footer">
+                  <span data-cd="summary">0 selected</span>
+                  <span>Click outside to close</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="time-format-toggle">
             <span class="toggle-label">Time Format:</span>
@@ -840,20 +910,37 @@
         <div class="interval-controls">
           <div class="interval-control-group">
             <label for="intervalLength">Interval Length:</label>
-            <select id="intervalLength">
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="45">45 minutes</option>
-              <option value="60">60 minutes</option>
-            </select>
+            <!-- Simpler dropdown outside config -->
+            <div class="checkbox-dropdown" id="intervalLengthContainer">
+              <div class="cd-trigger">
+                <span class="label">Select Interval Length</span>
+                <span class="count">0 selected</span>
+              </div>
+              <div class="cd-panel">
+                <div class="cd-header">
+                  <input type="text" class="cd-search" placeholder="Search interval lengths..." />
+                  <div class="cd-actions">
+                    <button type="button" data-cd="clear">Clear</button>
+                  </div>
+                </div>
+                <div class="cd-selectall">
+                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+                </div>
+                <div class="cd-list"></div>
+                <div class="cd-footer">
+                  <span data-cd="summary">0 selected</span>
+                  <span>Click outside to close</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="interval-control-group">
             <label for="openTime">Open Time:</label>
-            <input type="time" id="openTime" value="08:00">
+            <input type="time" id="openTime" value="08:00" class="form-control">
           </div>
           <div class="interval-control-group">
             <label for="closeTime">Close Time:</label>
-            <input type="time" id="closeTime" value="18:00">
+            <input type="time" id="closeTime" value="18:00" class="form-control">
           </div>
           <div class="interval-control-group">
             <label for="applyIntervalFilter">Apply Filter:</label>
@@ -882,11 +969,29 @@
         <div class="chart-controls">
           <div>
             <label for="chartViewType">View Type:</label>
-            <select id="chartViewType">
-              <option value="daily">Daily View</option>
-              <option value="weekly">Weekly View</option>
-              <option value="monthly">Monthly View</option>
-            </select>
+            <!-- Simpler dropdown outside config -->
+            <div class="checkbox-dropdown" id="chartViewTypeContainer">
+              <div class="cd-trigger">
+                <span class="label">Select Chart View Type</span>
+                <span class="count">0 selected</span>
+              </div>
+              <div class="cd-panel">
+                <div class="cd-header">
+                  <input type="text" class="cd-search" placeholder="Search view types..." />
+                  <div class="cd-actions">
+                    <button type="button" data-cd="clear">Clear</button>
+                  </div>
+                </div>
+                <div class="cd-selectall">
+                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+                </div>
+                <div class="cd-list"></div>
+                <div class="cd-footer">
+                  <span data-cd="summary">0 selected</span>
+                  <span>Click outside to close</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -940,8 +1045,13 @@
       fetchCancelled: false,
       businessUnitDropdown: null,
       planningGroupDropdown: null,
+      mediaTypeDropdown: null,
+      viewTypeDropdown: null,
+      intervalLengthDropdown: null,
+      chartViewTypeDropdown: null,
       selectedBusinessUnit: null,
       selectedPlanningGroups: [],
+      selectedMediaTypes: ['all'],
       intervalFilter: {
         openTime: '08:00',
         closeTime: '18:00',
@@ -1024,7 +1134,7 @@
             updateSelectAllState();
             updateLoadButtonState();
             
-            // Trigger change event for business unit dropdown
+            // Trigger change event for specific dropdowns
             if (containerId === 'businessUnitContainer' && selected.size > 0) {
               const businessUnitId = Array.from(selected)[0];
               fetchPlanningGroups(businessUnitId);
@@ -1352,7 +1462,7 @@
           groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
         }));
 
-        const viewType = document.getElementById('viewType').value;
+        const viewType = state.viewTypeDropdown ? state.viewTypeDropdown.getSelectedValue() : 'daily';
         const aggregatedData = aggregateDataByPeriod(groupData, viewType);
         
         aggregatedData.forEach(period => {
@@ -1636,7 +1746,7 @@
       }
     }
 
-    async function fetchIntradayData(date, planningGroupIds = []) {
+    async function fetchIntradayData(date, planningGroupIds = [], mediaTypes = []) {
       const businessUnitId = state.businessUnitDropdown ? state.businessUnitDropdown.getSelectedValue() : null;
       
       if (!businessUnitId) {
@@ -1685,24 +1795,39 @@
       }
     }
 
+    // ===== FIXED: processDayData with safer media type handling =====
     function processDayData(data) {
       if (!data?.result?.intradayDataGroupings) return [];
+
+      const normalize = v => (v || '').toString().toLowerCase();
       
-      const selectedPlanningGroups = state.planningGroupDropdown ? state.planningGroupDropdown.getSelectedValues() : [];
-      const mediaTypeFilter = document.getElementById('mediaTypeSelect').value;
-      
+      const selectedPlanningGroups = state.planningGroupDropdown
+        ? state.planningGroupDropdown.getSelectedValues()
+        : [];
+
+      const selectedMediaTypesRaw = state.mediaTypeDropdown
+        ? state.mediaTypeDropdown.getSelectedValues()
+        : [];
+
+      const selectedMediaTypes = selectedMediaTypesRaw.map(normalize);
+
       return data.result.intradayDataGroupings
         .filter(g => {
-          // Filter by media type
-          if (mediaTypeFilter !== 'all' && g.mediaType !== mediaTypeFilter) {
+          const mediaType = normalize(g.mediaType);
+
+          // Media type filtering (respect "all" and case differences, avoid filtering everything out)
+          if (selectedMediaTypes.length > 0 && !selectedMediaTypes.includes('all')) {
+            if (!mediaType || !selectedMediaTypes.includes(mediaType)) {
+              return false;
+            }
+          }
+
+          // Planning group filtering
+          if (selectedPlanningGroups.length > 0 &&
+              (!g.planningGroupId || !selectedPlanningGroups.includes(g.planningGroupId))) {
             return false;
           }
-          
-          // Filter by planning group
-          if (selectedPlanningGroups.length > 0 && (!g.planningGroupId || !selectedPlanningGroups.includes(g.planningGroupId))) {
-            return false;
-          }
-          
+
           return true;
         })
         .map(g => ({
@@ -1717,6 +1842,7 @@
       const days = getDateRange(startDate, endDate);
       const totalDays = days.length;
       const selectedPlanningGroups = state.planningGroupDropdown ? state.planningGroupDropdown.getSelectedValues() : [];
+      const selectedMediaTypes = state.mediaTypeDropdown ? state.mediaTypeDropdown.getSelectedValues() : [];
       
       if (state.isFetchingData) {
         showMessage('A data fetch is already in progress', 'error');
@@ -1755,7 +1881,7 @@
             const day = batch[j];
             updateProgress(processed + j, totalDays, `Fetching ${day.uk}...`);
             
-            const result = await fetchIntradayData(day.raw, selectedPlanningGroups);
+            const result = await fetchIntradayData(day.raw, selectedPlanningGroups, selectedMediaTypes);
             batchResults.push({
               ...result, 
               uk: day.uk,
@@ -1781,6 +1907,7 @@
         
         if (!state.fetchCancelled) {
           state.isDataLoaded = true;
+          refreshMediaTypeOptions();
           renderAllData();
           showMessage(`Successfully loaded ${processed} days of forecast data!`, 'success');
         }
@@ -1831,7 +1958,6 @@
       document.getElementById('loadDataBtn').disabled = true;
       document.getElementById('loadDataBtn').textContent = 'Loading...';
       document.getElementById('consolidatedSection').style.display = 'none';
-      document.getElementById('weeklySummary').innerHTML = '<div class="loading">Loading forecast data...</div>';
       
       fetchDataForDateRange(dateFrom, dateTo);
     }
@@ -1861,13 +1987,12 @@
       const planningGroups = groupsPresent();
       
       if (planningGroups.length === 0) {
-        container.innerHTML = '<div class="no-data">No planning groups found in the data.</div>';
-        document.getElementById('consolidatedSection').style.display = 'block';
-        document.getElementById('weeklySummary').style.display = 'none';
+        container.innerHTML = '<div class="no-data">No planning groups in data.</div>';
+        document.getElementById('consolidatedSection').style.display = 'none';
         return;
       }
 
-      const viewType = document.getElementById('viewType').value;
+      const viewType = state.viewTypeDropdown ? state.viewTypeDropdown.getSelectedValue() : 'daily';
       
       let html = '';
       
@@ -1929,7 +2054,7 @@
             <td><strong>${formatNumber(grandTotals.offered)}</strong></td>
             <td><strong>${formatTime(grandTotals.ahtCount > 0 ? grandTotals.aht / grandTotals.ahtCount : 0)}</strong></td>
             <td><strong>${formatPercentage(grandTotals.slCount > 0 ? grandTotals.sl / grandTotals.slCount : null)}</strong></td>
-            <td><strong>${formatTime(grandTotals.asaCount > 0 ? grandTotals.asa / grandTotals.asaCount : null)}</strong></td>
+            <td><strong>${formatTime(grandTotals.asaCount > 0 ? grandTotals.asa / grandTotals.asaCount : 0)}</strong></td>
             <td><strong>${formatPercentage(grandTotals.occupancyCount > 0 ? grandTotals.occupancy / grandTotals.occupancyCount : null)}</strong></td>
             <td><strong>${formatNumber(grandTotals.staffed)}</strong></td>
           </tr>
@@ -2012,8 +2137,8 @@
 
       const container = document.getElementById('intervalTableContainer');
       const selectedPlanningGroups = state.planningGroupDropdown ? state.planningGroupDropdown.getSelectedValues() : [];
-      const mediaTypeFilter = document.getElementById('mediaTypeSelect').value;
-      const intervalLength = parseInt(document.getElementById('intervalLength').value);
+      const selectedMediaTypes = state.mediaTypeDropdown ? state.mediaTypeDropdown.getSelectedValues() : [];
+      const intervalLength = state.intervalLengthDropdown ? parseInt(state.intervalLengthDropdown.getSelectedValue() || '15') : 15;
       
       // Get planning groups from the day's data
       const planningGroups = [];
@@ -2043,7 +2168,7 @@
         // Find group data
         const groupData = state.selectedDayData.data.result.intradayDataGroupings.find(g => 
           g.planningGroupId === group.id && 
-          (mediaTypeFilter === 'all' || g.mediaType === mediaTypeFilter)
+          (selectedMediaTypes.length === 0 || selectedMediaTypes.includes('all') || selectedMediaTypes.includes(g.mediaType))
         );
 
         if (!groupData || !groupData.forecastDataPerInterval) {
@@ -2137,6 +2262,37 @@
       container.innerHTML = html;
     }
 
+    function getAllMediaTypesFromData() {
+      const mediaTypes = new Set();
+      state.dateRangeData.forEach(day => {
+        day.data?.result?.intradayDataGroupings?.forEach(group => {
+          if (group.mediaType) mediaTypes.add(group.mediaType);
+        });
+      });
+      return Array.from(mediaTypes);
+    }
+
+    function refreshMediaTypeOptions() {
+      const mediaTypes = getAllMediaTypesFromData();
+      
+      if (state.mediaTypeDropdown && mediaTypes.length > 0) {
+        const options = mediaTypes.map(type => ({
+          value: type,
+          label: type
+        }));
+        
+        // Add "All" option
+        options.unshift({ value: 'all', label: 'All Media Types' });
+        
+        state.mediaTypeDropdown.setOptions(options);
+        
+        // Select "all" by default if nothing selected
+        if (state.mediaTypeDropdown.getSelectedValues().length === 0) {
+          state.mediaTypeDropdown.setSelectedValues(['all']);
+        }
+      }
+    }
+
     function groupsPresent() {
       const groupsMap = new Map();
       
@@ -2188,7 +2344,7 @@
         groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
       }));
 
-      const chartViewType = document.getElementById('chartViewType').value;
+      const chartViewType = state.chartViewTypeDropdown ? state.chartViewTypeDropdown.getSelectedValue() : 'daily';
       const aggregatedData = aggregateDataByPeriod(groupData, chartViewType);
       
       aggregatedData.forEach(period => {
@@ -2422,7 +2578,7 @@
     }
 
     function initializeApp() {
-      // Create dropdowns for configuration section only
+      // Create all dropdowns
       state.businessUnitDropdown = createCheckboxDropdown('businessUnitContainer', {
         placeholder: 'Select Business Unit',
         initialOptions: [],
@@ -2434,6 +2590,50 @@
         placeholder: 'Select Planning Groups',
         initialOptions: [],
         initialSelected: []
+      });
+
+      state.mediaTypeDropdown = createCheckboxDropdown('mediaTypeContainer', {
+        placeholder: 'Select Media Types',
+        initialOptions: [
+          { value: 'all', label: 'All Media Types' },
+          { value: 'Voice', label: 'Voice' },
+          { value: 'Message', label: 'Message' }
+        ],
+        initialSelected: ['all']
+      });
+
+      state.viewTypeDropdown = createCheckboxDropdown('viewTypeContainer', {
+        placeholder: 'Select View Type',
+        initialOptions: [
+          { value: 'daily', label: 'Daily View' },
+          { value: 'weekly', label: 'Weekly View' },
+          { value: 'monthly', label: 'Monthly View' }
+        ],
+        initialSelected: ['daily'],
+        singleSelect: true
+      });
+
+      state.intervalLengthDropdown = createCheckboxDropdown('intervalLengthContainer', {
+        placeholder: 'Select Interval Length',
+        initialOptions: [
+          { value: '15', label: '15 minutes' },
+          { value: '30', label: '30 minutes' },
+          { value: '45', label: '45 minutes' },
+          { value: '60', label: '60 minutes' }
+        ],
+        initialSelected: ['15'],
+        singleSelect: true
+      });
+
+      state.chartViewTypeDropdown = createCheckboxDropdown('chartViewTypeContainer', {
+        placeholder: 'Select Chart View Type',
+        initialOptions: [
+          { value: 'daily', label: 'Daily View' },
+          { value: 'weekly', label: 'Weekly View' },
+          { value: 'monthly', label: 'Monthly View' }
+        ],
+        initialSelected: ['daily'],
+        singleSelect: true
       });
 
       // Set up event listeners
@@ -2485,10 +2685,6 @@
       });
       
       // Interval controls
-      document.getElementById('intervalLength').addEventListener('change', function() {
-        state.intervalFilter.intervalLength = parseInt(this.value);
-      });
-      
       document.getElementById('openTime').addEventListener('change', function() {
         state.intervalFilter.openTime = this.value;
       });
@@ -2500,28 +2696,10 @@
       document.getElementById('applyIntervalFilter').addEventListener('click', function() {
         state.intervalFilter.openTime = document.getElementById('openTime').value;
         state.intervalFilter.closeTime = document.getElementById('closeTime').value;
-        state.intervalFilter.intervalLength = parseInt(document.getElementById('intervalLength').value);
+        const intervalLength = state.intervalLengthDropdown ? state.intervalLengthDropdown.getSelectedValue() : '15';
+        state.intervalFilter.intervalLength = parseInt(intervalLength);
         if (state.selectedDayData) {
           renderIntervalTable();
-        }
-      });
-      
-      // Config changes
-      document.getElementById('viewType').addEventListener('change', function() {
-        if (state.isDataLoaded) {
-          renderConsolidatedTable();
-        }
-      });
-      
-      document.getElementById('chartViewType').addEventListener('change', function() {
-        if (state.isDataLoaded) {
-          updateCharts();
-        }
-      });
-      
-      document.getElementById('mediaTypeSelect').addEventListener('change', function() {
-        if (state.isDataLoaded) {
-          renderAllData();
         }
       });
       
@@ -2535,8 +2713,14 @@
       document.getElementById('dateFrom').value = lastWeek.toISOString().split('T')[0];
       document.getElementById('dateTo').value = today.toISOString().split('T')[0];
       
-      // Load business units
       fetchBusinessUnits();
+    }
+
+    function onConfigChange() {
+      if (state.isDataLoaded) {
+        renderAllData();
+        updateCharts();
+      }
     }
   </script>
 </body>
