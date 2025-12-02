@@ -909,7 +909,6 @@
           const row = [
             group.name,
             period.label,
-            dateRange,
             period.offered ? Math.round(period.offered).toString() : '0',
             period.ahtCount > 0 ? Math.round(period.aht / period.ahtCount).toString() : '0',
             period.slCount > 0 ? (period.sl / period.slCount * 100).toFixed(CONFIG.precision) + '%' : '-',
