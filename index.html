@@ -55,7 +55,7 @@
       font-size: 14px;
     }
 
-    input, select, button, textarea {
+    input, button, textarea {
       padding: 10px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -515,6 +515,7 @@
       cursor: pointer;
       width: 100%;
       box-sizing: border-box;
+      min-height: 42px;
     }
     
     .cd-trigger .label {
@@ -586,6 +587,7 @@
       cursor: pointer;
       white-space: nowrap;
       width: auto;
+      font-size: 12px;
     }
     
     .cd-selectall {
@@ -594,6 +596,19 @@
       display: flex;
       align-items: center;
       gap: 10px;
+    }
+    
+    .cd-selectall label {
+      margin-bottom: 0;
+      font-weight: normal;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    
+    .cd-selectall input[type="checkbox"] {
+      width: auto;
     }
     
     .cd-list {
@@ -617,10 +632,12 @@
       width: 100%;
       margin-bottom: 0;
       font-weight: normal;
+      font-size: 14px;
     }
     
     .cd-item input[type="checkbox"] {
       width: auto;
+      margin: 0;
     }
     
     .cd-footer {
@@ -633,13 +650,12 @@
       justify-content: space-between;
     }
 
-    /* Media Type dropdown container - make it consistent */
-    .media-type-container {
+    /* Standard select styling that matches checkbox dropdowns */
+    .standard-select-container {
       position: relative;
       width: 100%;
     }
     
-    /* Standard select styling for non-multiselect dropdowns */
     .standard-select {
       width: 100%;
       padding: 10px;
@@ -648,6 +664,40 @@
       background: #fff;
       font-size: 14px;
       box-sizing: border-box;
+      min-height: 42px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232C3E50' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      padding-right: 30px;
+    }
+
+    /* Make all form controls consistent */
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 14px;
+      box-sizing: border-box;
+      min-height: 42px;
+    }
+    
+    input.form-control {
+      cursor: text;
+    }
+    
+    select.form-control {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232C3E50' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      padding-right: 30px;
     }
   </style>
 </head>
@@ -678,9 +728,29 @@
       <div class="controls">
         <div class="control-group">
           <label for="businessUnitSelect">Business Unit:</label>
-          <select id="businessUnitSelect" class="standard-select" disabled>
-            <option value="">-- Loading Business Units --</option>
-          </select>
+          <div class="checkbox-dropdown" id="businessUnitContainer">
+            <div class="cd-trigger">
+              <span class="label">Select Business Unit</span>
+              <span class="count">0 selected</span>
+            </div>
+            <div class="cd-panel">
+              <div class="cd-header">
+                <input type="text" class="cd-search" placeholder="Search business units..." />
+                <div class="cd-actions">
+                  <button type="button" data-cd="clear">Clear</button>
+                </div>
+              </div>
+              <div class="cd-selectall">
+                <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+              </div>
+              <div class="cd-list"></div>
+              <div class="cd-footer">
+                <span data-cd="summary">0 selected</span>
+                <span>Click outside to close</span>
+              </div>
+            </div>
+          </div>
+          <div class="muted">Single selection only</div>
         </div>
         <div class="control-group">
           <label for="planningGroupContainer">Planning Group:</label>
@@ -710,11 +780,11 @@
         </div>
         <div class="control-group">
           <label for="dateFrom">Date From:</label>
-          <input type="date" id="dateFrom" class="calendar-input">
+          <input type="date" id="dateFrom" class="form-control">
         </div>
         <div class="control-group">
           <label for="dateTo">Date To:</label>
-          <input type="date" id="dateTo" class="calendar-input">
+          <input type="date" id="dateTo" class="form-control">
         </div>
         <div class="control-group">
           <label for="mediaTypeContainer">Media Type:</label>
@@ -774,11 +844,28 @@
         <div class="chart-controls">
           <div>
             <label for="viewType">View Type:</label>
-            <select id="viewType" class="standard-select">
-              <option value="daily">Daily View</option>
-              <option value="weekly">Weekly View</option>
-              <option value="monthly">Monthly View</option>
-            </select>
+            <div class="checkbox-dropdown" id="viewTypeContainer">
+              <div class="cd-trigger">
+                <span class="label">Select View Type</span>
+                <span class="count">0 selected</span>
+              </div>
+              <div class="cd-panel">
+                <div class="cd-header">
+                  <input type="text" class="cd-search" placeholder="Search view types..." />
+                  <div class="cd-actions">
+                    <button type="button" data-cd="clear">Clear</button>
+                  </div>
+                </div>
+                <div class="cd-selectall">
+                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+                </div>
+                <div class="cd-list"></div>
+                <div class="cd-footer">
+                  <span data-cd="summary">0 selected</span>
+                  <span>Click outside to close</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="time-format-toggle">
             <span class="toggle-label">Time Format:</span>
@@ -804,20 +891,36 @@
         <div class="interval-controls">
           <div class="interval-control-group">
             <label for="intervalLength">Interval Length:</label>
-            <select id="intervalLength" class="standard-select">
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="45">45 minutes</option>
-              <option value="60">60 minutes</option>
-            </select>
+            <div class="checkbox-dropdown" id="intervalLengthContainer">
+              <div class="cd-trigger">
+                <span class="label">Select Interval Length</span>
+                <span class="count">0 selected</span>
+              </div>
+              <div class="cd-panel">
+                <div class="cd-header">
+                  <input type="text" class="cd-search" placeholder="Search interval lengths..." />
+                  <div class="cd-actions">
+                    <button type="button" data-cd="clear">Clear</button>
+                  </div>
+                </div>
+                <div class="cd-selectall">
+                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+                </div>
+                <div class="cd-list"></div>
+                <div class="cd-footer">
+                  <span data-cd="summary">0 selected</span>
+                  <span>Click outside to close</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="interval-control-group">
             <label for="openTime">Open Time:</label>
-            <input type="time" id="openTime" value="08:00">
+            <input type="time" id="openTime" value="08:00" class="form-control">
           </div>
           <div class="interval-control-group">
             <label for="closeTime">Close Time:</label>
-            <input type="time" id="closeTime" value="18:00">
+            <input type="time" id="closeTime" value="18:00" class="form-control">
           </div>
           <div class="interval-control-group">
             <label for="applyIntervalFilter">Apply Filter:</label>
@@ -846,11 +949,28 @@
         <div class="chart-controls">
           <div>
             <label for="chartViewType">View Type:</label>
-            <select id="chartViewType" class="standard-select">
-              <option value="daily">Daily View</option>
-              <option value="weekly">Weekly View</option>
-              <option value="monthly">Monthly View</option>
-            </select>
+            <div class="checkbox-dropdown" id="chartViewTypeContainer">
+              <div class="cd-trigger">
+                <span class="label">Select Chart View Type</span>
+                <span class="count">0 selected</span>
+              </div>
+              <div class="cd-panel">
+                <div class="cd-header">
+                  <input type="text" class="cd-search" placeholder="Search view types..." />
+                  <div class="cd-actions">
+                    <button type="button" data-cd="clear">Clear</button>
+                  </div>
+                </div>
+                <div class="cd-selectall">
+                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
+                </div>
+                <div class="cd-list"></div>
+                <div class="cd-footer">
+                  <span data-cd="summary">0 selected</span>
+                  <span>Click outside to close</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -893,7 +1013,6 @@
       planningGroupsMap: {},
       dateFrom: null,
       dateTo: null,
-      viewType: 'daily',
       charts: {},
       selectedDayForIntervals: null,
       selectedDayData: null,
@@ -903,10 +1022,15 @@
       currentIntervalData: null,
       isFetchingData: false,
       fetchCancelled: false,
+      businessUnitDropdown: null,
       planningGroupDropdown: null,
       mediaTypeDropdown: null,
+      viewTypeDropdown: null,
+      intervalLengthDropdown: null,
+      chartViewTypeDropdown: null,
+      selectedBusinessUnit: null,
       selectedPlanningGroups: [],
-      selectedMediaTypes: [],
+      selectedMediaTypes: ['all'],
       intervalFilter: {
         openTime: '08:00',
         closeTime: '18:00',
@@ -915,9 +1039,12 @@
     };
 
     // ===== Checkbox Dropdown Component =====
-    function createCheckboxDropdown(containerId, options) {
+    function createCheckboxDropdown(containerId, options = {}) {
       const root = document.getElementById(containerId);
-      if (!root) return null;
+      if (!root) {
+        console.error(`Container ${containerId} not found`);
+        return null;
+      }
       
       const trigger = root.querySelector('.cd-trigger');
       const panel = root.querySelector('.cd-panel');
@@ -928,17 +1055,21 @@
       const summary = root.querySelector('[data-cd="summary"]');
       const countDisplay = trigger.querySelector('.count');
 
-      let dropdownOptions = options?.initialOptions || [];
-      let selected = new Set(options?.initialSelected || []);
+      let dropdownOptions = options.initialOptions || [];
+      let selected = new Set(options.initialSelected || []);
+      let isSingleSelect = options.singleSelect || false;
 
-      function render(filter='') {
+      function render(filter = '') {
         const ft = filter.trim().toLowerCase();
         list.innerHTML = '';
-        const filtered = !ft ? dropdownOptions : dropdownOptions.filter(o => 
-          (o.label || '').toLowerCase().includes(ft) || (o.value || '').toLowerCase().includes(ft)
-        );
         
-        if (!filtered.length){ 
+        const filtered = !ft ? dropdownOptions : dropdownOptions.filter(o => {
+          const label = (o.label || '').toLowerCase();
+          const value = (o.value || '').toLowerCase();
+          return label.includes(ft) || value.includes(ft);
+        });
+        
+        if (!filtered.length) { 
           list.innerHTML = `<div class="cd-item" style="color:#6C757D">No matches</div>`; 
           return; 
         }
@@ -947,20 +1078,48 @@
           const id = `${containerId}__${o.value}`;
           const row = document.createElement('div');
           row.className = 'cd-item';
-          row.innerHTML = `
-            <label for="${id}">
-              <input type="checkbox" id="${id}" value="${o.value}" ${selected.has(o.value)?'checked':''}/>
-              <span>${o.label || o.value}</span>
-            </label>
-          `;
-          const cb = row.querySelector('input');
-          cb.addEventListener('change', () => {
-            if (cb.checked) selected.add(o.value); 
-            else selected.delete(o.value);
-            updateSummary(); 
+          
+          if (isSingleSelect) {
+            row.innerHTML = `
+              <label for="${id}">
+                <input type="radio" name="${containerId}" id="${id}" value="${o.value}" ${selected.has(o.value) ? 'checked' : ''}/>
+                <span>${o.label || o.value}</span>
+              </label>
+            `;
+          } else {
+            row.innerHTML = `
+              <label for="${id}">
+                <input type="checkbox" id="${id}" value="${o.value}" ${selected.has(o.value) ? 'checked' : ''}/>
+                <span>${o.label || o.value}</span>
+              </label>
+            `;
+          }
+          
+          const input = row.querySelector('input');
+          input.addEventListener('change', () => {
+            if (isSingleSelect) {
+              selected.clear();
+              if (input.checked) {
+                selected.add(o.value);
+              }
+            } else {
+              if (input.checked) {
+                selected.add(o.value);
+              } else {
+                selected.delete(o.value);
+              }
+            }
+            updateSummary();
             updateSelectAllState();
             updateLoadButtonState();
+            
+            // Trigger change event for specific dropdowns
+            if (containerId === 'businessUnitContainer' && selected.size > 0) {
+              const businessUnitId = Array.from(selected)[0];
+              fetchPlanningGroups(businessUnitId);
+            }
           });
+          
           list.appendChild(row);
         });
       }
@@ -969,14 +1128,22 @@
         const count = selected.size;
         countDisplay.textContent = `${count} selected`;
         if (summary) summary.textContent = `${count} selected`;
-        trigger.querySelector('.label').textContent = count === 0 ? 
-          (options?.placeholder || 'Select options') : 
-          `${count} selected`;
+        
+        if (count === 0) {
+          trigger.querySelector('.label').textContent = options.placeholder || 'Select options';
+        } else if (isSingleSelect && count === 1) {
+          const selectedValue = Array.from(selected)[0];
+          const selectedOption = dropdownOptions.find(o => o.value === selectedValue);
+          trigger.querySelector('.label').textContent = selectedOption ? selectedOption.label : selectedValue;
+        } else {
+          trigger.querySelector('.label').textContent = `${count} selected`;
+        }
       }
 
       function updateSelectAllState() {
-        if (!selectAll) return;
-        const total = dropdownOptions.length, count = selected.size;
+        if (!selectAll || isSingleSelect) return;
+        const total = dropdownOptions.length;
+        const count = selected.size;
         selectAll.indeterminate = count > 0 && count < total;
         selectAll.checked = total > 0 && count === total;
       }
@@ -986,11 +1153,15 @@
         panel.classList.toggle('open'); 
         if (panel.classList.contains('open')) {
           search.focus();
+          search.value = '';
+          render('');
         }
       });
       
       document.addEventListener('click', (e) => { 
-        if (!root.contains(e.target)) panel.classList.remove('open'); 
+        if (!root.contains(e.target)) {
+          panel.classList.remove('open');
+        }
       });
       
       search.addEventListener('input', () => render(search.value));
@@ -1005,7 +1176,7 @@
         });
       }
       
-      if (selectAll) {
+      if (selectAll && !isSingleSelect) {
         selectAll.addEventListener('change', () => {
           if (selectAll.checked) {
             dropdownOptions.forEach(o => selected.add(o.value));
@@ -1033,8 +1204,16 @@
         return Array.from(selected); 
       }
 
+      function getSelectedValue() {
+        return isSingleSelect && selected.size === 1 ? Array.from(selected)[0] : null;
+      }
+
       function setSelectedValues(values) {
-        selected = new Set(values);
+        if (isSingleSelect) {
+          selected = new Set(values && values.length > 0 ? [values[0]] : []);
+        } else {
+          selected = new Set(values || []);
+        }
         render(search.value);
         updateSummary();
         updateSelectAllState();
@@ -1054,9 +1233,11 @@
 
       return { 
         setOptions, 
-        getSelectedValues, 
+        getSelectedValues,
+        getSelectedValue,
         setSelectedValues,
-        clearSelection 
+        clearSelection,
+        isSingleSelect
       };
     }
 
@@ -1260,7 +1441,7 @@
           groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
         }));
 
-        const viewType = document.getElementById('viewType').value;
+        const viewType = state.viewTypeDropdown ? state.viewTypeDropdown.getSelectedValue() : 'daily';
         const aggregatedData = aggregateDataByPeriod(groupData, viewType);
         
         aggregatedData.forEach(period => {
@@ -1502,17 +1683,15 @@
           `https://api.${CONFIG.region}/api/v2/workforcemanagement/businessunits?pageSize=100`
         );
         
-        const select = document.getElementById('businessUnitSelect');
-        select.innerHTML = '<option value="">-- Select Business Unit --</option>';
+        const options = businessUnits.map(bu => ({
+          value: bu.id,
+          label: bu.name
+        }));
         
-        businessUnits.forEach(bu => {
-          const option = document.createElement('option');
-          option.value = bu.id;
-          option.textContent = bu.name;
-          select.appendChild(option);
-        });
+        if (state.businessUnitDropdown) {
+          state.businessUnitDropdown.setOptions(options);
+        }
         
-        select.disabled = false;
       } catch (error) {
         showMessage('Error loading business units: ' + error.message, 'error');
       }
@@ -1547,7 +1726,7 @@
     }
 
     async function fetchIntradayData(date, planningGroupIds = [], mediaTypes = []) {
-      const businessUnitId = document.getElementById('businessUnitSelect').value;
+      const businessUnitId = state.businessUnitDropdown ? state.businessUnitDropdown.getSelectedValue() : null;
       
       if (!businessUnitId) {
         return { date, data: null, error: 'No business unit selected' };
@@ -1604,7 +1783,7 @@
       return data.result.intradayDataGroupings
         .filter(g => {
           // Filter by media type
-          if (selectedMediaTypes.length > 0 && !selectedMediaTypes.includes(g.mediaType)) {
+          if (selectedMediaTypes.length > 0 && !selectedMediaTypes.includes('all') && !selectedMediaTypes.includes(g.mediaType)) {
             return false;
           }
           
@@ -1708,17 +1887,8 @@
     }
 
     // ===== UI Event Handlers =====
-    function onBusinessUnitChange() {
-      const businessUnitId = this.value;
-      
-      if (businessUnitId) {
-        fetchPlanningGroups(businessUnitId);
-      }
-      updateLoadButtonState();
-    }
-
     function updateLoadButtonState() {
-      const businessUnitId = document.getElementById('businessUnitSelect').value;
+      const businessUnitId = state.businessUnitDropdown ? state.businessUnitDropdown.getSelectedValue() : null;
       const dateFrom = document.getElementById('dateFrom').value;
       const dateTo = document.getElementById('dateTo').value;
       
@@ -1786,7 +1956,7 @@
         return;
       }
 
-      const viewType = document.getElementById('viewType').value;
+      const viewType = state.viewTypeDropdown ? state.viewTypeDropdown.getSelectedValue() : 'daily';
       
       let html = '';
       
@@ -1871,7 +2041,6 @@
     }
 
     function showIntervalData(period, rawDate) {
-      console.log('showIntervalData called with:', { period, rawDate });
       state.selectedDayForIntervals = period;
       
       // Find the day data
@@ -1933,7 +2102,7 @@
       const container = document.getElementById('intervalTableContainer');
       const selectedPlanningGroups = state.planningGroupDropdown ? state.planningGroupDropdown.getSelectedValues() : [];
       const selectedMediaTypes = state.mediaTypeDropdown ? state.mediaTypeDropdown.getSelectedValues() : [];
-      const intervalLength = parseInt(document.getElementById('intervalLength').value);
+      const intervalLength = state.intervalLengthDropdown ? parseInt(state.intervalLengthDropdown.getSelectedValue() || '15') : 15;
       
       // Get planning groups from the day's data
       const planningGroups = [];
@@ -1963,7 +2132,7 @@
         // Find group data
         const groupData = state.selectedDayData.data.result.intradayDataGroupings.find(g => 
           g.planningGroupId === group.id && 
-          (selectedMediaTypes.length === 0 || selectedMediaTypes.includes(g.mediaType))
+          (selectedMediaTypes.length === 0 || selectedMediaTypes.includes('all') || selectedMediaTypes.includes(g.mediaType))
         );
 
         if (!groupData || !groupData.forecastDataPerInterval) {
@@ -2070,7 +2239,7 @@
     function refreshMediaTypeOptions() {
       const mediaTypes = getAllMediaTypesFromData();
       
-      if (state.mediaTypeDropdown) {
+      if (state.mediaTypeDropdown && mediaTypes.length > 0) {
         const options = mediaTypes.map(type => ({
           value: type,
           label: type
@@ -2081,7 +2250,7 @@
         
         state.mediaTypeDropdown.setOptions(options);
         
-        // Select "all" by default
+        // Select "all" by default if nothing selected
         if (state.mediaTypeDropdown.getSelectedValues().length === 0) {
           state.mediaTypeDropdown.setSelectedValues(['all']);
         }
@@ -2139,7 +2308,7 @@
         groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
       }));
 
-      const chartViewType = document.getElementById('chartViewType').value;
+      const chartViewType = state.chartViewTypeDropdown ? state.chartViewTypeDropdown.getSelectedValue() : 'daily';
       const aggregatedData = aggregateDataByPeriod(groupData, chartViewType);
       
       aggregatedData.forEach(period => {
@@ -2373,14 +2542,20 @@
     }
 
     function initializeApp() {
-      // Create planning group dropdown
+      // Create all dropdowns
+      state.businessUnitDropdown = createCheckboxDropdown('businessUnitContainer', {
+        placeholder: 'Select Business Unit',
+        initialOptions: [],
+        initialSelected: [],
+        singleSelect: true
+      });
+
       state.planningGroupDropdown = createCheckboxDropdown('planningGroupContainer', {
         placeholder: 'Select Planning Groups',
         initialOptions: [],
         initialSelected: []
       });
 
-      // Create media type dropdown
       state.mediaTypeDropdown = createCheckboxDropdown('mediaTypeContainer', {
         placeholder: 'Select Media Types',
         initialOptions: [
@@ -2391,9 +2566,41 @@
         initialSelected: ['all']
       });
 
-      document.getElementById('businessUnitSelect').addEventListener('change', onBusinessUnitChange);
-      document.getElementById('viewType').addEventListener('change', onConfigChange);
-      document.getElementById('chartViewType').addEventListener('change', updateCharts);
+      state.viewTypeDropdown = createCheckboxDropdown('viewTypeContainer', {
+        placeholder: 'Select View Type',
+        initialOptions: [
+          { value: 'daily', label: 'Daily View' },
+          { value: 'weekly', label: 'Weekly View' },
+          { value: 'monthly', label: 'Monthly View' }
+        ],
+        initialSelected: ['daily'],
+        singleSelect: true
+      });
+
+      state.intervalLengthDropdown = createCheckboxDropdown('intervalLengthContainer', {
+        placeholder: 'Select Interval Length',
+        initialOptions: [
+          { value: '15', label: '15 minutes' },
+          { value: '30', label: '30 minutes' },
+          { value: '45', label: '45 minutes' },
+          { value: '60', label: '60 minutes' }
+        ],
+        initialSelected: ['15'],
+        singleSelect: true
+      });
+
+      state.chartViewTypeDropdown = createCheckboxDropdown('chartViewTypeContainer', {
+        placeholder: 'Select Chart View Type',
+        initialOptions: [
+          { value: 'daily', label: 'Daily View' },
+          { value: 'weekly', label: 'Weekly View' },
+          { value: 'monthly', label: 'Monthly View' }
+        ],
+        initialSelected: ['daily'],
+        singleSelect: true
+      });
+
+      // Set up event listeners
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
       
       // Export buttons
@@ -2442,13 +2649,6 @@
       });
       
       // Interval controls
-      document.getElementById('intervalLength').addEventListener('change', function() {
-        state.intervalFilter.intervalLength = parseInt(this.value);
-        if (state.selectedDayData) {
-          renderIntervalTable();
-        }
-      });
-      
       document.getElementById('openTime').addEventListener('change', function() {
         state.intervalFilter.openTime = this.value;
       });
@@ -2460,6 +2660,8 @@
       document.getElementById('applyIntervalFilter').addEventListener('click', function() {
         state.intervalFilter.openTime = document.getElementById('openTime').value;
         state.intervalFilter.closeTime = document.getElementById('closeTime').value;
+        const intervalLength = state.intervalLengthDropdown ? state.intervalLengthDropdown.getSelectedValue() : '15';
+        state.intervalFilter.intervalLength = parseInt(intervalLength);
         if (state.selectedDayData) {
           renderIntervalTable();
         }
