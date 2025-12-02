@@ -438,6 +438,21 @@
     .export-btn:hover {
       background: var(--primary-color);
     }
+    
+    .interval-controls {
+      background: var(--light-bg);
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .interval-controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      align-items: end;
+    }
   </style>
 </head>
 <body>
@@ -547,6 +562,32 @@
       </div>
       
       <div id="intervalTab" class="tab-content">
+        <div class="interval-controls">
+          <h3 style="margin-top: 0; margin-bottom: 15px;">Interval Settings</h3>
+          <div class="interval-controls-grid">
+            <div class="control-group">
+              <label for="intervalLength">Interval Length:</label>
+              <select id="intervalLength">
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">60 minutes</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="openingTime">Opening Time:</label>
+              <input type="time" id="openingTime" value="08:00">
+            </div>
+            <div class="control-group">
+              <label for="closingTime">Closing Time:</label>
+              <input type="time" id="closingTime" value="18:00">
+            </div>
+            <div class="control-group">
+              <label>&nbsp;</label>
+              <button id="applyIntervalSettings" class="export-btn">Apply Settings</button>
+            </div>
+          </div>
+        </div>
         <div class="chart-controls">
           <div class="time-format-toggle">
             <span class="toggle-label">Time Format:</span>
@@ -560,7 +601,7 @@
         <div class="export-buttons">
           <button class="export-btn" id="exportIntervalBtn">Export Interval Data to CSV</button>
         </div>
-        <h2 class="section-title">15-min Interval Data</h2>
+        <h2 class="section-title">Interval Data</h2>
         <div id="intervalTableContainer" class="loading">Click on a day in the Forecast Data tab to view interval data</div>
       </div>
 
@@ -619,7 +660,12 @@
       isDataLoaded: false,
       currentChartType: 'volume',
       timeFormat: 'hhmmss', // 'hhmmss' or 'seconds'
-      currentIntervalData: null
+      currentIntervalData: null,
+      intervalSettings: {
+        length: 15,
+        openingTime: '08:00',
+        closingTime: '18:00'
+      }
     };
 
     // ===== Utility Functions =====
@@ -1110,7 +1156,7 @@
         const requestBody = {
           businessUnitDate: date,
           categories: ["ForecastData", "ScheduleData", "PerformancePredictionData"],
-          intervalLengthMinutes: 15
+          intervalLengthMinutes: 15 // Default for initial fetch
         };
         
         if (planningGroupId && planningGroupId !== '__ALL__') {
@@ -1173,7 +1219,8 @@
           forecast: g.forecastDataSummary || {},
           prediction: getPerformancePredictionData(g),
           planningGroupId: g.planningGroupId || null,
-          mediaType: g.mediaType || null
+          mediaType: g.mediaType || null,
+          rawData: g // Store raw data for interval processing
         }));
     }
 
@@ -1232,6 +1279,101 @@
       refreshMediaTypeOptions();
       renderAllData();
       showMessage('Forecast data loaded successfully!', 'success');
+    }
+
+    // ===== Interval Generation Functions =====
+    function generateIntervals() {
+      const intervals = [];
+      const intervalLength = parseInt(state.intervalSettings.length);
+      const [openingHour, openingMinute] = state.intervalSettings.openingTime.split(':').map(Number);
+      const [closingHour, closingMinute] = state.intervalSettings.closingTime.split(':').map(Number);
+      
+      const openingMinutes = openingHour * 60 + openingMinute;
+      const closingMinutes = closingHour * 60 + closingMinute;
+      
+      for (let minutes = openingMinutes; minutes < closingMinutes; minutes += intervalLength) {
+        const hour = Math.floor(minutes / 60);
+        const minute = minutes % 60;
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        
+        intervals.push({
+          time: timeString,
+          offered: 0,
+          aht: 0,
+          sl: '-',
+          asa: 0,
+          occupancy: '-',
+          staffed: 0
+        });
+      }
+      
+      return intervals;
+    }
+
+    function aggregateToNewInterval(originalIntervals, intervalLength) {
+      const aggregated = [];
+      const intervalMinutes = parseInt(intervalLength);
+      let currentInterval = null;
+      let intervalCount = 0;
+      
+      // Convert 15-min intervals to the new interval length
+      for (let i = 0; i < originalIntervals.length; i++) {
+        const interval = originalIntervals[i];
+        const intervalIndex = Math.floor(i / (intervalMinutes / 15));
+        
+        if (!aggregated[intervalIndex]) {
+          aggregated[intervalIndex] = {
+            time: interval.time,
+            offered: 0,
+            aht: 0,
+            ahtCount: 0,
+            sl: 0,
+            slCount: 0,
+            asa: 0,
+            asaCount: 0,
+            occupancy: 0,
+            occupancyCount: 0,
+            staffed: 0
+          };
+        }
+        
+        const agg = aggregated[intervalIndex];
+        
+        // Sum up metrics
+        agg.offered += interval.offered || 0;
+        agg.aht += interval.aht || 0;
+        agg.ahtCount += (interval.aht && interval.aht > 0) ? 1 : 0;
+        
+        if (interval.sl && interval.sl !== '-') {
+          // Convert percentage string back to number
+          const slValue = parseFloat(interval.sl) / 100;
+          agg.sl += slValue;
+          agg.slCount++;
+        }
+        
+        agg.asa += interval.asa || 0;
+        agg.asaCount += (interval.asa && interval.asa > 0) ? 1 : 0;
+        
+        if (interval.occupancy && interval.occupancy !== '-') {
+          // Convert percentage string back to number
+          const occValue = parseFloat(interval.occupancy) / 100;
+          agg.occupancy += occValue;
+          agg.occupancyCount++;
+        }
+        
+        agg.staffed += interval.staffed || 0;
+      }
+      
+      // Convert aggregated data back to display format
+      return aggregated.filter(Boolean).map(agg => ({
+        time: agg.time,
+        offered: agg.offered,
+        aht: agg.ahtCount > 0 ? agg.aht / agg.ahtCount : 0,
+        sl: agg.slCount > 0 ? formatPercentage(agg.sl / agg.slCount) : '-',
+        asa: agg.asaCount > 0 ? agg.asa / agg.asaCount : 0,
+        occupancy: agg.occupancyCount > 0 ? formatPercentage(agg.occupancy / agg.occupancyCount) : '-',
+        staffed: agg.staffed
+      }));
     }
 
     // ===== UI Event Handlers =====
@@ -1318,7 +1460,7 @@
       }
       
       if (tabName === 'interval' && state.selectedDayForIntervals) {
-        render15MinTable(state.selectedDayForIntervals, state.selectedDayForIntervals);
+        renderIntervalTable();
       }
     }
 
@@ -1434,44 +1576,26 @@
     function showIntervalData(period, rawDate) {
       state.selectedDayForIntervals = rawDate || period;
       setActiveTab('interval');
-      render15MinTable(period, rawDate);
+      renderIntervalTable();
     }
 
-    function generateAllIntervals() {
-      const intervals = [];
-      for (let hour = 0; hour < 24; hour++) {
-        for (let minute = 0; minute < 60; minute += 15) {
-          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          intervals.push({
-            time: timeString,
-            offered: 0,
-            aht: 0,
-            sl: '-',
-            asa: 0,
-            occupancy: '-',
-            staffed: 0
-          });
-        }
-      }
-      return intervals;
-    }
-
-    function render15MinTable(period, rawDate) {
+    function renderIntervalTable() {
       const container = document.getElementById('intervalTableContainer');
       const mediaTypeFilter = document.getElementById('mediaType').value;
       
-      if (!period) {
+      if (!state.selectedDayForIntervals) {
         container.innerHTML = '<div class="no-data">Click on a day in the Forecast Data tab to view interval data</div>';
         return;
       }
 
-      // Try to find the day data using rawDate if available, otherwise parse from period
+      // Try to find the day data
       let dayData;
-      if (rawDate) {
-        // rawDate is already in UK format (DD/MM/YYYY)
-        dayData = state.dateRangeData.find(d => d.uk === rawDate);
+      if (state.selectedDayForIntervals.includes('/')) {
+        // It's a UK date format
+        dayData = state.dateRangeData.find(d => d.uk === state.selectedDayForIntervals);
       } else {
-        const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
+        // It's a period label, try to extract date
+        const dateMatch = state.selectedDayForIntervals.match(/(\d{2}\/\d{2}\/\d{4})/);
         if (dateMatch) {
           dayData = state.dateRangeData.find(d => d.uk === dateMatch[0]);
         }
@@ -1483,7 +1607,7 @@
       }
 
       const planningGroups = groupsPresent();
-      let html = `<h3>15-minute Interval Data for ${period}</h3>`;
+      let html = `<h3>Interval Data for ${state.selectedDayForIntervals}</h3>`;
       
       state.currentIntervalData = [];
       
@@ -1497,43 +1621,54 @@
           return;
         }
 
-        // Generate all 96 intervals for midnight to midnight
-        const allIntervals = generateAllIntervals();
+        // Generate 15-min intervals from API data
+        const fifteenMinIntervals = [];
+        for (let i = 0; i < 96; i++) { // 96 intervals for 24 hours
+          const hour = Math.floor(i / 4);
+          const minute = (i % 4) * 15;
+          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          
+          const interval = groupData.forecastDataPerInterval[i] || {};
+          const forecast = interval.forecast || {};
+          const prediction = interval.performancePrediction || {};
+          
+          fifteenMinIntervals.push({
+            time: timeString,
+            offered: forecast.offered || 0,
+            aht: forecast.averageHandleTimeSeconds || 0,
+            sl: prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-',
+            asa: prediction?.averageSpeedOfAnswerSeconds || 0,
+            occupancy: prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-',
+            staffed: forecast.staffed || 0
+          });
+        }
+
+        // Aggregate to selected interval length
+        const aggregatedIntervals = aggregateToNewInterval(fifteenMinIntervals, state.intervalSettings.length);
         
-        // Map API data to our intervals
-        groupData.forecastDataPerInterval.forEach((interval, index) => {
-          if (index < allIntervals.length) {
-            const forecast = interval.forecast || {};
-            const prediction = interval.performancePrediction || {};
-            
-            allIntervals[index].offered = forecast.offered || 0;
-            allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
-            allIntervals[index].sl = prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-';
-            allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
-            allIntervals[index].occupancy = prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-';
-            allIntervals[index].staffed = forecast.staffed || 0;
-          }
+        // Filter by opening/closing times
+        const filteredIntervals = aggregatedIntervals.filter(interval => {
+          const [hour, minute] = interval.time.split(':').map(Number);
+          const totalMinutes = hour * 60 + minute;
+          const openingMinutes = parseInt(state.intervalSettings.openingTime.split(':')[0]) * 60 + 
+                                parseInt(state.intervalSettings.openingTime.split(':')[1]);
+          const closingMinutes = parseInt(state.intervalSettings.closingTime.split(':')[0]) * 60 + 
+                                parseInt(state.intervalSettings.closingTime.split(':')[1]);
+          
+          return totalMinutes >= openingMinutes && totalMinutes < closingMinutes;
         });
 
         // Store for CSV export
         state.currentIntervalData.push({
           groupName: group.name,
-          intervals: allIntervals.map(interval => ({
-            time: interval.time,
-            offered: interval.offered,
-            aht: interval.aht,
-            sl: interval.sl,
-            asa: interval.asa,
-            occupancy: interval.occupancy,
-            staffed: interval.staffed
-          }))
+          intervals: filteredIntervals
         });
 
         html += `
           <div class="table-container" style="margin-bottom:30px;">
             <table class="consolidated-table">
               <tr>
-                <th colspan="7" class="group-header">Planning Group: ${group.name} - 15-min Intervals</th>
+                <th colspan="7" class="group-header">Planning Group: ${group.name} - ${state.intervalSettings.length}-min Intervals (${state.intervalSettings.openingTime} to ${state.intervalSettings.closingTime})</th>
               </tr>
               <tr>
                 <th class="sub-header">Time</th>
@@ -1546,7 +1681,7 @@
               </tr>
         `;
 
-        allIntervals.forEach(interval => {
+        filteredIntervals.forEach(interval => {
           html += `
             <tr>
               <td>${interval.time}</td>
@@ -1563,11 +1698,22 @@
         html += `</table></div>`;
       });
 
-      if (html === `<h3>15-minute Interval Data for ${period}</h3>`) {
+      if (html === `<h3>Interval Data for ${state.selectedDayForIntervals}</h3>`) {
         html += '<div class="no-data">No interval data available for this date and planning group</div>';
       }
 
       container.innerHTML = html;
+    }
+
+    function updateIntervalSettings() {
+      state.intervalSettings.length = document.getElementById('intervalLength').value;
+      state.intervalSettings.openingTime = document.getElementById('openingTime').value;
+      state.intervalSettings.closingTime = document.getElementById('closingTime').value;
+      
+      if (state.selectedDayForIntervals && state.isDataLoaded) {
+        renderIntervalTable();
+        showMessage('Interval settings updated', 'success');
+      }
     }
 
     function getAllMediaTypesFromData() {
@@ -1888,6 +2034,12 @@
       document.getElementById('chartViewType').addEventListener('change', updateCharts);
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
       
+      // Interval settings
+      document.getElementById('applyIntervalSettings').addEventListener('click', updateIntervalSettings);
+      document.getElementById('intervalLength').addEventListener('change', updateIntervalSettings);
+      document.getElementById('openingTime').addEventListener('change', updateIntervalSettings);
+      document.getElementById('closingTime').addEventListener('change', updateIntervalSettings);
+      
       // Export buttons
       document.getElementById('exportForecastBtn').addEventListener('click', exportForecastData);
       document.getElementById('exportIntervalBtn').addEventListener('click', exportIntervalData);
@@ -1919,7 +2071,7 @@
         state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
         updateTimeFormatLabels();
         if (state.selectedDayForIntervals && state.isDataLoaded) {
-          render15MinTable(state.selectedDayForIntervals);
+          renderIntervalTable();
         }
       });
       
