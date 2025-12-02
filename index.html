@@ -1148,30 +1148,24 @@
       }
     }
 
+    // ===== FIXED: Use the working version from the older code =====
     function processDayData(data) {
       if (!data?.result?.intradayDataGroupings) return [];
-
-      const uiMediaType = document.getElementById('mediaType').value;
-      const uiPg = document.getElementById('planningGroup').value;
-
+      
+      const mediaTypeFilter = document.getElementById('mediaType').value;
+      const planningGroupId = document.getElementById('planningGroup').value;
+      
       return data.result.intradayDataGroupings
-        .filter(g => {
-          if (uiMediaType) {
-            if (g.mediaType && g.mediaType !== uiMediaType) return false;
-          }
-          if (uiPg && uiPg !== '__ALL__') {
-            if (g.planningGroupId && g.planningGroupId !== uiPg) return false;
-          }
-          return true;
-        })
+        .filter(g => 
+          (!mediaTypeFilter || g.mediaType === mediaTypeFilter) && 
+          (!g.planningGroupId || g.planningGroupId === planningGroupId || planningGroupId === '__ALL__')
+        )
         .map(g => ({
           forecast: g.forecastDataSummary || {},
           prediction: getPerformancePredictionData(g),
-          planningGroupId: g.planningGroupId || null,
-          mediaType: g.mediaType || null
+          planningGroupId: g.planningGroupId
         }));
     }
-
 
     async function fetchDataForDateRange(startDate, endDate) {
       const days = getDateRange(startDate, endDate);
