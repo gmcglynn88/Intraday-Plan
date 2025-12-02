@@ -1535,146 +1535,180 @@
         row.addEventListener('click', function() {
           const period = this.getAttribute('data-period');
           const rawDate = this.getAttribute('data-raw-date');
+          console.log('Clicked row with period:', period, 'rawDate:', rawDate);
           showIntervalData(period, rawDate);
         });
       });
     }
 
-    function showIntervalData(period, rawDate) {
-      state.selectedDayForIntervals = period;
-      setActiveTab('interval');
-      render15MinTable(period, rawDate);
-    }
+function showIntervalData(period, rawDate) {
+  console.log('showIntervalData called with:', { period, rawDate });
+  state.selectedDayForIntervals = period;
+  setActiveTab('interval');
+  render15MinTable(period, rawDate);
+}
 
-    function generateAllIntervals() {
-      const intervals = [];
-      for (let hour = 0; hour < 24; hour++) {
-        for (let minute = 0; minute < 60; minute += 15) {
-          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          intervals.push({
-            time: timeString,
-            offered: 0,
-            aht: 0,
-            sl: '-',
-            asa: 0,
-            occupancy: '-',
-            staffed: 0
-          });
-        }
-      }
-      return intervals;
+function generateAllIntervals() {
+  const intervals = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      intervals.push({
+        time: timeString,
+        offered: 0,
+        aht: 0,
+        sl: '-',
+        asa: 0,
+        occupancy: '-',
+        staffed: 0
+      });
     }
+  }
+  return intervals;
+}
 
-    function render15MinTable(period, rawDate) {
-      const container = document.getElementById('intervalTableContainer');
-      const mediaTypeFilter = document.getElementById('mediaType').value;
+function render15MinTable(period, rawDate) {
+  const container = document.getElementById('intervalTableContainer');
+  const mediaTypeFilter = document.getElementById('mediaType').value;
+  const planningGroupId = document.getElementById('planningGroup').value;
+  
+  if (!period) {
+    container.innerHTML = '<div class="no-data">Click on a day in the Forecast Data tab to view interval data</div>';
+    return;
+  }
+
+  // Try to find the day data - use rawDate if available, otherwise parse from period
+  let dayData;
+  if (rawDate) {
+    // rawDate is in UK format (dd/mm/yyyy)
+    dayData = state.dateRangeData.find(d => d.uk === rawDate);
+  } else {
+    // Try to extract date from period string (e.g., "Mon 01/01/2024")
+    const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (dateMatch) {
+      dayData = state.dateRangeData.find(d => d.uk === dateMatch[1]);
+    }
+  }
+
+  if (!dayData || !dayData.data?.result?.intradayDataGroupings) {
+    console.log('Day data not found or no interval data:', {
+      period, 
+      rawDate, 
+      dayData,
+      hasGroupings: dayData?.data?.result?.intradayDataGroupings
+    });
+    container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
+    return;
+  }
+
+  const planningGroups = groupsPresent();
+  let html = `<h3>15-minute Interval Data for ${period}</h3>`;
+  
+  state.currentIntervalData = [];
+  
+  planningGroups.forEach(group => {
+    // Find the specific group data
+    const groupData = dayData.data.result.intradayDataGroupings.find(g => {
+      // Check media type filter
+      if (mediaTypeFilter && g.mediaType !== mediaTypeFilter) return false;
       
-      if (!period) {
-        container.innerHTML = '<div class="no-data">Click on a day in the Forecast Data tab to view interval data</div>';
-        return;
-      }
-
-      // Try to find the day data using rawDate if available, otherwise parse from period
-      let dayData;
-      if (rawDate) {
-        dayData = state.dateRangeData.find(d => d.uk === rawDate);
+      // Check planning group filter
+      if (planningGroupId === '__ALL__') {
+        // If "All planning groups" is selected, show all groups
+        return true;
       } else {
-        const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
-        if (dateMatch) {
-          dayData = state.dateRangeData.find(d => d.uk === dateMatch[1]);
-        }
+        // Otherwise, match the specific planning group
+        return g.planningGroupId === group.id;
       }
+    });
 
-      if (!dayData || !dayData.data?.result?.intradayDataGroupings) {
-        container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
-        return;
-      }
-
-      const planningGroups = groupsPresent();
-      let html = `<h3>15-minute Interval Data for ${period}</h3>`;
+    // Generate all 96 intervals for midnight to midnight
+    const allIntervals = generateAllIntervals();
+    
+    if (groupData && groupData.forecastDataPerInterval) {
+      console.log(`Found group data for ${group.name} with ${groupData.forecastDataPerInterval.length} intervals`);
       
-      state.currentIntervalData = [];
-      
-      planningGroups.forEach(group => {
-        const groupData = dayData.data.result.intradayDataGroupings.find(g =>
-          (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
-          (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
-        );
-
-        // Generate all 96 intervals for midnight to midnight
-        const allIntervals = generateAllIntervals();
-        
-        if (groupData && groupData.forecastDataPerInterval) {
-          // Map API data to our intervals
-          groupData.forecastDataPerInterval.forEach((interval, index) => {
-            if (index < allIntervals.length) {
-              const forecast = interval.forecast || {};
-              const prediction = interval.performancePrediction || {};
-              
-              allIntervals[index].offered = forecast.offered || 0;
-              allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
-              allIntervals[index].sl = prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-';
-              allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
-              allIntervals[index].occupancy = prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-';
-              allIntervals[index].staffed = forecast.staffed || 0;
-            }
-          });
-
-          // Store for CSV export
-          state.currentIntervalData.push({
-            groupName: group.name,
-            intervals: allIntervals.map(interval => ({
-              time: interval.time,
-              offered: interval.offered,
-              aht: interval.aht,
-              sl: interval.sl,
-              asa: interval.asa,
-              occupancy: interval.occupancy,
-              staffed: interval.staffed
-            }))
-          });
-
-          html += `
-            <div class="table-container" style="margin-bottom:30px;">
-              <table class="consolidated-table">
-                <tr>
-                  <th colspan="7" class="group-header">Planning Group: ${group.name} - 15-min Intervals</th>
-                </tr>
-                <tr>
-                  <th class="sub-header">Time</th>
-                  <th class="sub-header">Offered</th>
-                  <th class="sub-header">Avg Handle Time</th>
-                  <th class="sub-header">Service Level</th>
-                  <th class="sub-header">Avg Speed Answer</th>
-                  <th class="sub-header">Occupancy</th>
-                  <th class="sub-header">Staffed</th>
-                </tr>
-          `;
-
-          allIntervals.forEach(interval => {
-            html += `
-              <tr>
-                <td>${interval.time}</td>
-                <td>${formatNumber(interval.offered)}</td>
-                <td>${formatTime(interval.aht)}</td>
-                <td>${interval.sl}</td>
-                <td>${formatTime(interval.asa)}</td>
-                <td>${interval.occupancy}</td>
-                <td>${formatNumber(interval.staffed)}</td>
-              </tr>
-            `;
-          });
-
-          html += `</table></div>`;
+      // Map API data to our intervals - API should return 96 intervals (0-95)
+      groupData.forecastDataPerInterval.forEach((interval, index) => {
+        if (index < allIntervals.length) {
+          const forecast = interval.forecast || {};
+          const prediction = interval.performancePrediction || {};
+          
+          allIntervals[index].offered = forecast.offered || 0;
+          allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
+          allIntervals[index].sl = prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-';
+          allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
+          allIntervals[index].occupancy = prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-';
+          allIntervals[index].staffed = forecast.staffed || 0;
         }
       });
 
-      if (html === `<h3>15-minute Interval Data for ${period}</h3>`) {
-        html += '<div class="no-data">No interval data available for this date and planning group</div>';
-      }
+      // Store for CSV export
+      state.currentIntervalData.push({
+        groupName: group.name,
+        intervals: allIntervals.map(interval => ({
+          time: interval.time,
+          offered: interval.offered,
+          aht: interval.aht,
+          sl: interval.sl,
+          asa: interval.asa,
+          occupancy: interval.occupancy,
+          staffed: interval.staffed
+        }))
+      });
 
-      container.innerHTML = html;
+      html += `
+        <div class="table-container" style="margin-bottom:30px;">
+          <table class="consolidated-table">
+            <tr>
+              <th colspan="7" class="group-header">Planning Group: ${group.name} - 15-min Intervals</th>
+            </tr>
+            <tr>
+              <th class="sub-header">Time</th>
+              <th class="sub-header">Offered</th>
+              <th class="sub-header">Avg Handle Time</th>
+              <th class="sub-header">Service Level</th>
+              <th class="sub-header">Avg Speed Answer</th>
+              <th class="sub-header">Occupancy</th>
+              <th class="sub-header">Staffed</th>
+            </tr>
+      `;
+
+      allIntervals.forEach(interval => {
+        html += `
+          <tr>
+            <td>${interval.time}</td>
+            <td>${formatNumber(interval.offered)}</td>
+            <td>${formatTime(interval.aht)}</td>
+            <td>${interval.sl}</td>
+            <td>${formatTime(interval.asa)}</td>
+            <td>${interval.occupancy}</td>
+            <td>${formatNumber(interval.staffed)}</td>
+          </tr>
+        `;
+      });
+
+      html += `</table></div>`;
+    } else {
+      console.log(`No group data found for ${group.name}`);
+      html += `
+        <div class="table-container" style="margin-bottom:30px;">
+          <table class="consolidated-table">
+            <tr>
+              <th colspan="7" class="group-header">Planning Group: ${group.name} - No Interval Data Available</th>
+            </tr>
+          </table>
+        </div>
+      `;
     }
+  });
+
+  if (html === `<h3>15-minute Interval Data for ${period}</h3>`) {
+    html += '<div class="no-data">No interval data available for this date and planning group</div>';
+  }
+
+  container.innerHTML = html;
+}
 
     function getAllMediaTypesFromData() {
       const mediaTypes = new Set();
