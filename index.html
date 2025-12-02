@@ -557,7 +557,7 @@
             </div>
           </div>
           <div class="rate-limit-warning" id="rateLimitWarning">
-            <strong>⚠️ Large Date Range Detected:</strong> Loading more than 30 days may take several minutes due to API rate limits. Data will be fetched in batches with automatic delays.
+            <strong>⚠️ Large Date Range Detected:</strong> Loading more than 30 days may take longer. Please Wait
           </div>
         </div>
       </div>
@@ -1281,7 +1281,7 @@
       
       try {
         if (totalDays > 30) {
-          showMessage(`Fetching ${totalDays} days of forecast data. This may take several minutes due to API rate limits.`, 'info');
+          showMessage(`Fetching ${totalDays} days of forecast data. Wider date ranges make take longer to generate`, 'info');
         }
         
         // Process days in batches with rate limiting
