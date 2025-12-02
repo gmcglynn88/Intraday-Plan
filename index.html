@@ -14,7 +14,6 @@
       --card-bg: #FFFFFF;
       --text-color: #2C3E50;
       --text-light: #6C757D;
-      --pill: #e9f6f0;
     }
 
     body {
@@ -55,7 +54,7 @@
       font-size: 14px;
     }
 
-    input, button, textarea {
+    input, select, button, textarea {
       padding: 10px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -262,7 +261,6 @@
       gap: 15px;
       margin-bottom: 20px;
       flex-wrap: wrap;
-      align-items: center;
     }
 
     .chart-controls select {
@@ -277,59 +275,6 @@
 
     .clickable-row:hover {
       background-color: rgba(99, 171, 143, 0.1) !important;
-    }
-
-    /* Progress bar styles */
-    .progress-container {
-      width: 100%;
-      margin: 20px 0;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 4px;
-      background: #e9ecef;
-      border-radius: 2px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-
-    .progress-details {
-      font-size: 12px;
-      color: var(--text-light);
-      margin-top: 5px;
-      text-align: center;
-    }
-
-    /* Interval controls */
-    .interval-controls {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 20px;
-      padding: 15px;
-      background: var(--light-bg);
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      flex-wrap: wrap;
-    }
-
-    .interval-control-group {
-      display: flex;
-      flex-direction: column;
-      min-width: 200px;
-    }
-
-    .interval-control-group label {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 5px;
     }
 
     /* Responsive adjustments */
@@ -355,20 +300,27 @@
       
       .chart-controls {
         flex-direction: column;
-        align-items: flex-start;
       }
       
       .chart-controls select {
         width: 100%;
       }
-      
-      .interval-controls {
-        flex-direction: column;
-      }
-      
-      .interval-control-group {
-        min-width: 100%;
-      }
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e9ecef;
+      border-radius: 2px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary-color);
+      width: 0%;
+      transition: width 0.3s ease;
     }
 
     .auth-container {
@@ -486,236 +438,6 @@
     .export-btn:hover {
       background: var(--primary-color);
     }
-
-    .rate-limit-warning {
-      background: #fff7ed;
-      border: 1px solid #ffedd5;
-      color: #6b4e16;
-      padding: 10px 15px;
-      border-radius: 6px;
-      margin-top: 15px;
-      font-size: 13px;
-      display: none;
-    }
-
-    /* Checkbox dropdown styles */
-    .checkbox-dropdown {
-      position: relative;
-      width: 100%;
-    }
-    
-    /* Base dropdown trigger (simpler for non-config areas) */
-    .cd-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: #f4f4f4;
-      padding: 10px;
-      cursor: pointer;
-      width: 100%;
-      box-sizing: border-box;
-      min-height: 42px;
-    }
-
-    /* Premium styling only in configuration section */
-    .config-controls .cd-trigger {
-      background: #fff;
-    }
-    
-    .cd-trigger .label {
-      color: var(--text-color);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-      font-size: 14px;
-      padding-top: 1px;
-    }
-    
-    .cd-trigger .count {
-      background: var(--pill);
-      border: 1px solid var(--border-color);
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 12px;
-      color: #2c3e50;
-      flex-shrink: 0;
-      margin-left: 8px;
-    }
-    
-    .cd-panel {
-      position: absolute;
-      z-index: 1000;
-      margin-top: 6px;
-      background: #fff;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.12);
-      width: 100%;
-      max-height: 340px;
-      overflow: hidden;
-      display: none;
-      box-sizing: border-box;
-    }
-    
-    .cd-panel.open {
-      display: block;
-    }
-    
-    .cd-header {
-      padding: 10px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    
-    .cd-search {
-      flex: 1;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 8px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    
-    .cd-actions {
-      display: flex;
-      gap: 8px;
-    }
-    
-    .cd-actions button {
-      background: #eef6f2;
-      color: #2c3e50;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 8px 10px;
-      cursor: pointer;
-      white-space: nowrap;
-      width: auto;
-      font-size: 12px;
-    }
-    
-    .cd-selectall {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .cd-selectall label {
-      margin-bottom: 0;
-      font-weight: normal;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      width: 100%;
-    }
-    
-    .cd-selectall input[type="checkbox"] {
-      width: auto;
-    }
-    
-    .cd-list {
-      max-height: 260px;
-      overflow: auto;
-    }
-    
-    .cd-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      border-bottom: 1px solid #f1f3f5;
-    }
-    
-    .cd-item label {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      width: 100%;
-      margin-bottom: 0;
-      font-weight: normal;
-      font-size: 14px;
-    }
-    
-    .cd-item input[type="checkbox"],
-    .cd-item input[type="radio"] {
-      width: auto;
-      margin: 0;
-    }
-    
-    .cd-footer {
-      padding: 8px 12px;
-      background: #fafafa;
-      border-top: 1px solid var(--border-color);
-      font-size: 12px;
-      color: var(--text-light);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    /* Standard select styling that matches checkbox dropdowns */
-    .standard-select-container {
-      position: relative;
-      width: 100%;
-    }
-    
-    .standard-select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: #fff;
-      font-size: 14px;
-      box-sizing: border-box;
-      min-height: 42px;
-      cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232C3E50' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      background-size: 16px;
-      padding-right: 30px;
-    }
-
-    /* Make all form controls consistent */
-    .form-control {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: #fff;
-      font-size: 14px;
-      box-sizing: border-box;
-      min-height: 42px;
-    }
-    
-    input.form-control {
-      cursor: text;
-    }
-    
-    select.form-control {
-      cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232C3E50' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      background-size: 16px;
-      padding-right: 30px;
-    }
-
-    /* Make date inputs match form controls visually */
-    input[type="date"].form-control {
-      appearance: none;
-      background-color: #fff;
-      background-image: none;
-    }
   </style>
 </head>
 <body>
@@ -742,107 +464,43 @@
 
     <div class="card">
       <h2 class="section-title">Configuration</h2>
-      <!-- Config controls get premium dropdown styling -->
-      <div class="controls config-controls">
+      <div class="controls">
         <div class="control-group">
           <label for="businessUnitSelect">Business Unit:</label>
-          <div class="checkbox-dropdown" id="businessUnitContainer">
-            <div class="cd-trigger">
-              <span class="label">Select Business Unit</span>
-              <span class="count">0 selected</span>
-            </div>
-            <div class="cd-panel">
-              <div class="cd-header">
-                <input type="text" class="cd-search" placeholder="Search business units..." />
-                <div class="cd-actions">
-                  <button type="button" data-cd="clear">Clear</button>
-                </div>
-              </div>
-              <div class="cd-selectall">
-                <label><input type="checkbox" data-cd="selectall"/> Select all</label>
-              </div>
-              <div class="cd-list"></div>
-              <div class="cd-footer">
-                <span data-cd="summary">0 selected</span>
-                <span>Click outside to close</span>
-              </div>
-            </div>
-          </div>
-          <div class="muted">Single selection only</div>
+          <select id="businessUnitSelect" disabled>
+            <option value="">-- Loading Business Units --</option>
+          </select>
         </div>
         <div class="control-group">
-          <label for="planningGroupContainer">Planning Group:</label>
-          <div id="planningGroupContainer" class="checkbox-dropdown">
-            <div class="cd-trigger">
-              <span class="label">Select Planning Groups</span>
-              <span class="count">0 selected</span>
-            </div>
-            <div class="cd-panel">
-              <div class="cd-header">
-                <input type="text" class="cd-search" placeholder="Search planning groups..." />
-                <div class="cd-actions">
-                  <button type="button" data-cd="clear">Clear</button>
-                </div>
-              </div>
-              <div class="cd-selectall">
-                <label><input type="checkbox" data-cd="selectall"/> Select all</label>
-              </div>
-              <div class="cd-list"></div>
-              <div class="cd-footer">
-                <span data-cd="summary">0 selected</span>
-                <span>Click outside to close</span>
-              </div>
-            </div>
-          </div>
-          <div class="muted">Multiple selection available</div>
+          <label for="planningGroup">Planning Group:</label>
+          <select id="planningGroup" disabled>
+            <option value="">-- Select Business Unit First --</option>
+          </select>
+          <div class="muted"></div>
         </div>
         <div class="control-group">
           <label for="dateFrom">Date From:</label>
-          <input type="date" id="dateFrom" class="form-control">
+          <input type="date" id="dateFrom" class="calendar-input">
         </div>
         <div class="control-group">
           <label for="dateTo">Date To:</label>
-          <input type="date" id="dateTo" class="form-control">
+          <input type="date" id="dateTo" class="calendar-input">
         </div>
         <div class="control-group">
-          <label for="mediaTypeContainer">Media Type:</label>
-          <div id="mediaTypeContainer" class="checkbox-dropdown">
-            <div class="cd-trigger">
-              <span class="label">Select Media Types</span>
-              <span class="count">0 selected</span>
-            </div>
-            <div class="cd-panel">
-              <div class="cd-header">
-                <input type="text" class="cd-search" placeholder="Search media types..." />
-                <div class="cd-actions">
-                  <button type="button" data-cd="clear">Clear</button>
-                </div>
-              </div>
-              <div class="cd-selectall">
-                <label><input type="checkbox" data-cd="selectall"/> Select all</label>
-              </div>
-              <div class="cd-list"></div>
-              <div class="cd-footer">
-                <span data-cd="summary">0 selected</span>
-                <span>Click outside to close</span>
-              </div>
-            </div>
-          </div>
-          <div class="muted">Multiple selection available</div>
+          <label for="mediaType">Media Type:</label>
+          <select id="mediaType">
+            <option value="">-- All Media Types --</option>
+            <option value="Voice">Voice</option>
+            <option value="Message">Message</option>
+          </select>
         </div>
         <div class="control-group">
           <label>&nbsp;</label>
           <button id="loadDataBtn" class="full-width-btn" disabled>
             Load Forecast Data
           </button>
-          <div class="progress-container" id="progressContainer" style="display: none;">
-            <div class="progress-bar">
-              <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="progress-details" id="progressDetails"></div>
-          </div>
-          <div class="rate-limit-warning" id="rateLimitWarning">
-            <strong>⚠️ Large Date Range Detected:</strong> Loading more than 30 days may take longer. Please Wait. . .
+          <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
           </div>
         </div>
       </div>
@@ -862,29 +520,11 @@
         <div class="chart-controls">
           <div>
             <label for="viewType">View Type:</label>
-            <!-- This dropdown is outside config, so uses simpler style -->
-            <div class="checkbox-dropdown" id="viewTypeContainer">
-              <div class="cd-trigger">
-                <span class="label">Select View Type</span>
-                <span class="count">0 selected</span>
-              </div>
-              <div class="cd-panel">
-                <div class="cd-header">
-                  <input type="text" class="cd-search" placeholder="Search view types..." />
-                  <div class="cd-actions">
-                    <button type="button" data-cd="clear">Clear</button>
-                  </div>
-                </div>
-                <div class="cd-selectall">
-                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
-                </div>
-                <div class="cd-list"></div>
-                <div class="cd-footer">
-                  <span data-cd="summary">0 selected</span>
-                  <span>Click outside to close</span>
-                </div>
-              </div>
-            </div>
+            <select id="viewType">
+              <option value="daily">Daily View</option>
+              <option value="weekly">Weekly View</option>
+              <option value="monthly">Monthly View</option>
+            </select>
           </div>
           <div class="time-format-toggle">
             <span class="toggle-label">Time Format:</span>
@@ -907,46 +547,6 @@
       </div>
       
       <div id="intervalTab" class="tab-content">
-        <div class="interval-controls">
-          <div class="interval-control-group">
-            <label for="intervalLength">Interval Length:</label>
-            <!-- Simpler dropdown outside config -->
-            <div class="checkbox-dropdown" id="intervalLengthContainer">
-              <div class="cd-trigger">
-                <span class="label">Select Interval Length</span>
-                <span class="count">0 selected</span>
-              </div>
-              <div class="cd-panel">
-                <div class="cd-header">
-                  <input type="text" class="cd-search" placeholder="Search interval lengths..." />
-                  <div class="cd-actions">
-                    <button type="button" data-cd="clear">Clear</button>
-                  </div>
-                </div>
-                <div class="cd-selectall">
-                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
-                </div>
-                <div class="cd-list"></div>
-                <div class="cd-footer">
-                  <span data-cd="summary">0 selected</span>
-                  <span>Click outside to close</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="interval-control-group">
-            <label for="openTime">Open Time:</label>
-            <input type="time" id="openTime" value="08:00" class="form-control">
-          </div>
-          <div class="interval-control-group">
-            <label for="closeTime">Close Time:</label>
-            <input type="time" id="closeTime" value="18:00" class="form-control">
-          </div>
-          <div class="interval-control-group">
-            <label for="applyIntervalFilter">Apply Filter:</label>
-            <button id="applyIntervalFilter">Apply Time Filter</button>
-          </div>
-        </div>
         <div class="chart-controls">
           <div class="time-format-toggle">
             <span class="toggle-label">Time Format:</span>
@@ -960,7 +560,7 @@
         <div class="export-buttons">
           <button class="export-btn" id="exportIntervalBtn">Export Interval Data to CSV</button>
         </div>
-        <h2 class="section-title">Interval Data for <span id="selectedDayTitle"></span></h2>
+        <h2 class="section-title">15-min Interval Data</h2>
         <div id="intervalTableContainer" class="loading">Click on a day in the Forecast Data tab to view interval data</div>
       </div>
 
@@ -969,29 +569,11 @@
         <div class="chart-controls">
           <div>
             <label for="chartViewType">View Type:</label>
-            <!-- Simpler dropdown outside config -->
-            <div class="checkbox-dropdown" id="chartViewTypeContainer">
-              <div class="cd-trigger">
-                <span class="label">Select Chart View Type</span>
-                <span class="count">0 selected</span>
-              </div>
-              <div class="cd-panel">
-                <div class="cd-header">
-                  <input type="text" class="cd-search" placeholder="Search view types..." />
-                  <div class="cd-actions">
-                    <button type="button" data-cd="clear">Clear</button>
-                  </div>
-                </div>
-                <div class="cd-selectall">
-                  <label><input type="checkbox" data-cd="selectall"/> Select all</label>
-                </div>
-                <div class="cd-list"></div>
-                <div class="cd-footer">
-                  <span data-cd="summary">0 selected</span>
-                  <span>Click outside to close</span>
-                </div>
-              </div>
-            </div>
+            <select id="chartViewType">
+              <option value="daily">Daily View</option>
+              <option value="weekly">Weekly View</option>
+              <option value="monthly">Monthly View</option>
+            </select>
           </div>
         </div>
         
@@ -1016,11 +598,8 @@
       region: 'mypurecloud.ie',
       timeFormat: 'seconds',
       precision: 1,
-      maxDaysPerRequest: 7, // Maximum days to fetch in a single batch
-      delayBetweenRequests: 500, // Delay between individual day requests
-      delayBetweenBatches: 2000, // Longer delay between batches
-      maxConcurrentRequests: 3, // Maximum concurrent requests
-      progressUpdateInterval: 100 // Update progress every 100ms
+      maxDaysPerRequest: 7,
+      delayBetweenRequests: 500
     };
 
     const DEBUG = new URLSearchParams(window.location.search).has('debug');
@@ -1034,233 +613,14 @@
       planningGroupsMap: {},
       dateFrom: null,
       dateTo: null,
+      viewType: 'daily',
       charts: {},
       selectedDayForIntervals: null,
-      selectedDayData: null,
       isDataLoaded: false,
       currentChartType: 'volume',
       timeFormat: 'hhmmss', // 'hhmmss' or 'seconds'
-      currentIntervalData: null,
-      isFetchingData: false,
-      fetchCancelled: false,
-      businessUnitDropdown: null,
-      planningGroupDropdown: null,
-      mediaTypeDropdown: null,
-      viewTypeDropdown: null,
-      intervalLengthDropdown: null,
-      chartViewTypeDropdown: null,
-      selectedBusinessUnit: null,
-      selectedPlanningGroups: [],
-      selectedMediaTypes: ['all'],
-      intervalFilter: {
-        openTime: '08:00',
-        closeTime: '18:00',
-        intervalLength: 15
-      }
+      currentIntervalData: null
     };
-
-    // ===== Checkbox Dropdown Component =====
-    function createCheckboxDropdown(containerId, options = {}) {
-      const root = document.getElementById(containerId);
-      if (!root) {
-        console.error(`Container ${containerId} not found`);
-        return null;
-      }
-      
-      const trigger = root.querySelector('.cd-trigger');
-      const panel = root.querySelector('.cd-panel');
-      const list = root.querySelector('.cd-list');
-      const search = root.querySelector('.cd-search');
-      const clearBtn = root.querySelector('[data-cd="clear"]');
-      const selectAll = root.querySelector('[data-cd="selectall"]');
-      const summary = root.querySelector('[data-cd="summary"]');
-      const countDisplay = trigger.querySelector('.count');
-
-      let dropdownOptions = options.initialOptions || [];
-      let selected = new Set(options.initialSelected || []);
-      let isSingleSelect = options.singleSelect || false;
-
-      function render(filter = '') {
-        const ft = filter.trim().toLowerCase();
-        list.innerHTML = '';
-        
-        const filtered = !ft ? dropdownOptions : dropdownOptions.filter(o => {
-          const label = (o.label || '').toLowerCase();
-          const value = (o.value || '').toLowerCase();
-          return label.includes(ft) || value.includes(ft);
-        });
-        
-        if (!filtered.length) { 
-          list.innerHTML = `<div class="cd-item" style="color:#6C757D">No matches</div>`; 
-          return; 
-        }
-        
-        filtered.forEach(o => {
-          const id = `${containerId}__${o.value}`;
-          const row = document.createElement('div');
-          row.className = 'cd-item';
-          
-          if (isSingleSelect) {
-            row.innerHTML = `
-              <label for="${id}">
-                <input type="radio" name="${containerId}" id="${id}" value="${o.value}" ${selected.has(o.value) ? 'checked' : ''}/>
-                <span>${o.label || o.value}</span>
-              </label>
-            `;
-          } else {
-            row.innerHTML = `
-              <label for="${id}">
-                <input type="checkbox" id="${id}" value="${o.value}" ${selected.has(o.value) ? 'checked' : ''}/>
-                <span>${o.label || o.value}</span>
-              </label>
-            `;
-          }
-          
-          const input = row.querySelector('input');
-          input.addEventListener('change', () => {
-            if (isSingleSelect) {
-              selected.clear();
-              if (input.checked) {
-                selected.add(o.value);
-              }
-            } else {
-              if (input.checked) {
-                selected.add(o.value);
-              } else {
-                selected.delete(o.value);
-              }
-            }
-            updateSummary();
-            updateSelectAllState();
-            updateLoadButtonState();
-            
-            // Trigger change event for specific dropdowns
-            if (containerId === 'businessUnitContainer' && selected.size > 0) {
-              const businessUnitId = Array.from(selected)[0];
-              fetchPlanningGroups(businessUnitId);
-            }
-          });
-          
-          list.appendChild(row);
-        });
-      }
-
-      function updateSummary() {
-        const count = selected.size;
-        countDisplay.textContent = `${count} selected`;
-        if (summary) summary.textContent = `${count} selected`;
-        
-        if (count === 0) {
-          trigger.querySelector('.label').textContent = options.placeholder || 'Select options';
-        } else if (isSingleSelect && count === 1) {
-          const selectedValue = Array.from(selected)[0];
-          const selectedOption = dropdownOptions.find(o => o.value === selectedValue);
-          trigger.querySelector('.label').textContent = selectedOption ? selectedOption.label : selectedValue;
-        } else {
-          trigger.querySelector('.label').textContent = `${count} selected`;
-        }
-      }
-
-      function updateSelectAllState() {
-        if (!selectAll || isSingleSelect) return;
-        const total = dropdownOptions.length;
-        const count = selected.size;
-        selectAll.indeterminate = count > 0 && count < total;
-        selectAll.checked = total > 0 && count === total;
-      }
-
-      // Event Listeners
-      trigger.addEventListener('click', () => { 
-        panel.classList.toggle('open'); 
-        if (panel.classList.contains('open')) {
-          search.focus();
-          search.value = '';
-          render('');
-        }
-      });
-      
-      document.addEventListener('click', (e) => { 
-        if (!root.contains(e.target)) {
-          panel.classList.remove('open');
-        }
-      });
-      
-      search.addEventListener('input', () => render(search.value));
-      
-      if (clearBtn) {
-        clearBtn.addEventListener('click', () => { 
-          selected.clear(); 
-          render(search.value); 
-          updateSummary(); 
-          updateSelectAllState();
-          updateLoadButtonState();
-        });
-      }
-      
-      if (selectAll && !isSingleSelect) {
-        selectAll.addEventListener('change', () => {
-          if (selectAll.checked) {
-            dropdownOptions.forEach(o => selected.add(o.value));
-          } else {
-            selected.clear();
-          }
-          render(search.value); 
-          updateSummary();
-          updateLoadButtonState();
-        });
-      }
-
-      function setOptions(newOptions) {
-        dropdownOptions = newOptions || [];
-        // Remove selections that are no longer in options
-        selected.forEach(v => { 
-          if (!dropdownOptions.some(o => o.value === v)) selected.delete(v); 
-        });
-        render(search.value); 
-        updateSummary(); 
-        updateSelectAllState();
-      }
-
-      function getSelectedValues() { 
-        return Array.from(selected); 
-      }
-
-      function getSelectedValue() {
-        return isSingleSelect && selected.size === 1 ? Array.from(selected)[0] : null;
-      }
-
-      function setSelectedValues(values) {
-        if (isSingleSelect) {
-          selected = new Set(values && values.length > 0 ? [values[0]] : []);
-        } else {
-          selected = new Set(values || []);
-        }
-        render(search.value);
-        updateSummary();
-        updateSelectAllState();
-      }
-
-      function clearSelection() {
-        selected.clear();
-        render(search.value);
-        updateSummary();
-        updateSelectAllState();
-      }
-
-      // Initial render
-      render('');
-      updateSummary();
-      updateSelectAllState();
-
-      return { 
-        setOptions, 
-        getSelectedValues,
-        getSelectedValue,
-        setSelectedValues,
-        clearSelection,
-        isSingleSelect
-      };
-    }
 
     // ===== Utility Functions =====
     function getMonday(date) {
@@ -1275,7 +635,7 @@
       seconds = Math.round(seconds);
       
       if (state.timeFormat === 'seconds') {
-        return seconds.toString();
+        return seconds.toString(); // Remove the 's'
       } else {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
@@ -1286,12 +646,14 @@
 
     function formatNumber(num) {
       if (num === null || num === undefined) return '-';
-      return Number.isFinite(num) ? Math.round(num).toString() : '-';
+      return Number.isFinite(num) ? Math.round(num).toString() : '-'; // Round to whole numbers
     }
 
     function formatPercentage(num) {
       if (num === null || num === undefined) return '-';
+      // The API returns decimals (0.1291 = 12.91%), so we multiply by 100 to get percentage
       const value = num * 100;
+      // Cap at 100% for display to handle any API issues
       const cappedValue = Math.min(value, 100);
       return Number.isFinite(cappedValue) ? cappedValue.toFixed(CONFIG.precision) + '%' : '-';
     }
@@ -1360,8 +722,11 @@
     }
 
     function getPerformancePredictionData(groupData) {
+      console.log("Raw prediction data:", groupData.performancePredictionDataSummary);
+      
       if (groupData.performancePredictionDataSummary) {
         const pred = groupData.performancePredictionDataSummary;
+        // The API returns percentages as decimals (0.1291 = 12.91%), so we don't divide by 100
         return {
           serviceLevelPercent: pred.serviceLevelPercent,
           averageSpeedOfAnswerSeconds: pred.averageSpeedOfAnswerSeconds,
@@ -1404,34 +769,6 @@
       }
     }
 
-    // ===== Progress Bar Functions =====
-    function showProgressBar() {
-      const container = document.getElementById('progressContainer');
-      container.style.display = 'block';
-      
-      const warning = document.getElementById('rateLimitWarning');
-      const dateFrom = new Date(document.getElementById('dateFrom').value);
-      const dateTo = new Date(document.getElementById('dateTo').value);
-      const dayCount = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24)) + 1;
-      
-      if (dayCount > 30) {
-        warning.style.display = 'block';
-      } else {
-        warning.style.display = 'none';
-      }
-    }
-
-    function hideProgressBar() {
-      const container = document.getElementById('progressContainer');
-      container.style.display = 'none';
-    }
-
-    function updateProgress(current, total, status = '') {
-      const percentage = Math.round((current / total) * 100);
-      document.getElementById('progressFill').style.width = `${percentage}%`;
-      document.getElementById('progressDetails').textContent = status || `Processing ${current} of ${total} days`;
-    }
-
     // ===== CSV Export Functions =====
     function exportToCSV(filename, csvData) {
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
@@ -1454,7 +791,7 @@
       }
 
       const planningGroups = groupsPresent();
-      let csvContent = 'Planning Group,Period,Offered,Avg Handle Time,Service Level,Avg Speed Answer,Occupancy,Staffed\n';
+      let csvContent = 'Planning Group,Period,Date Range,Offered,Avg Handle Time,Service Level,Avg Speed Answer,Occupancy,Staffed\n';
       
       planningGroups.forEach(group => {
         const groupData = state.dateRangeData.map(day => ({
@@ -1462,13 +799,18 @@
           groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
         }));
 
-        const viewType = state.viewTypeDropdown ? state.viewTypeDropdown.getSelectedValue() : 'daily';
+        const viewType = document.getElementById('viewType').value;
         const aggregatedData = aggregateDataByPeriod(groupData, viewType);
         
         aggregatedData.forEach(period => {
+          const dateRange = viewType === 'daily' ? 
+            period.label : 
+            `${getUKFormattedDate(period.startDate)} - ${getUKFormattedDate(period.endDate)}`;
+
           const row = [
             group.name,
             period.label,
+            dateRange,
             period.offered ? Math.round(period.offered).toString() : '0',
             period.ahtCount > 0 ? Math.round(period.aht / period.ahtCount).toString() : '0',
             period.slCount > 0 ? (period.sl / period.slCount * 100).toFixed(CONFIG.precision) + '%' : '-',
@@ -1514,7 +856,7 @@
       exportToCSV(filename, csvContent);
     }
 
-    // ===== Data Aggregation Functions =====
+    // ===== FIXED Data Aggregation Functions =====
     function aggregateDataByPeriod(data, periodType) {
       console.log(`Aggregating ${data.length} days by ${periodType} view`);
       
@@ -1526,7 +868,7 @@
           }
           
           let offered = 0, aht = 0, ahtCount = 0, sl = 0, slCount = 0, 
-              asa = 0, asaCnt = 0, occupancy = 0, occupancyCount = 0, staffed = 0;
+              asa = 0, asaCount = 0, occupancy = 0, occupancyCount = 0, staffed = 0;
           
           day.groupData.forEach(group => {
             offered += group.forecast.offered || 0;
@@ -1540,7 +882,7 @@
             
             if (group.prediction.averageSpeedOfAnswerSeconds !== null && group.prediction.averageSpeedOfAnswerSeconds !== undefined) {
               asa += group.prediction.averageSpeedOfAnswerSeconds;
-              asaCnt++;
+              asaCount++;
             }
             
             if (group.prediction.occupancyPercent !== null && group.prediction.occupancyPercent !== undefined) {
@@ -1558,7 +900,7 @@
             sl: sl,
             slCount: slCount,
             asa: asa,
-            asaCount: asaCnt,
+            asaCount: asaCount,
             occupancy: occupancy,
             occupancyCount: occupancyCount,
             staffed: staffed,
@@ -1566,16 +908,17 @@
             startDate: new Date(day.date),
             endDate: new Date(day.date),
             daysInPeriod: 1,
-            rawDate: day.uk
+            rawDate: day.uk // Store the raw date for interval lookup
           };
         }).filter(day => day !== null);
       }
       
-      // For weekly and monthly views
+      // For weekly and monthly views, use the original aggregation logic
       const aggregated = {};
       
       data.forEach(day => {
         if (!day.date || !day.groupData || day.groupData.length === 0) {
+          console.log('Skipping day with no data:', day.uk);
           return;
         }
         
@@ -1593,7 +936,7 @@
             periodKey = `month-${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
             periodLabel = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
             break;
-          default:
+          default: // daily (already handled above)
             periodKey = `day-${day.raw}`;
             periodLabel = `${getDOWFromUK(day.uk)} ${day.uk}`;
         }
@@ -1619,10 +962,12 @@
         
         const period = aggregated[periodKey];
         
+        // Update date range for this period
         if (date < period.startDate) period.startDate = new Date(date);
         if (date > period.endDate) period.endDate = new Date(date);
         period.daysInPeriod++;
         
+        // Sum up all metrics from all planning groups for this day
         day.groupData.forEach(group => {
           period.offered += group.forecast.offered || 0;
           period.aht += group.forecast.averageHandleTimeSeconds || 0;
@@ -1647,7 +992,9 @@
         });
       });
       
-      return Object.values(aggregated);
+      const result = Object.values(aggregated);
+      console.log(`Aggregation result: ${result.length} periods`, result);
+      return result;
     }
 
     // ===== API Functions =====
@@ -1704,15 +1051,17 @@
           `https://api.${CONFIG.region}/api/v2/workforcemanagement/businessunits?pageSize=100`
         );
         
-        const options = businessUnits.map(bu => ({
-          value: bu.id,
-          label: bu.name
-        }));
+        const select = document.getElementById('businessUnitSelect');
+        select.innerHTML = '<option value="">-- Select Business Unit --</option>';
         
-        if (state.businessUnitDropdown) {
-          state.businessUnitDropdown.setOptions(options);
-        }
+        businessUnits.forEach(bu => {
+          const option = document.createElement('option');
+          option.value = bu.id;
+          option.textContent = bu.name;
+          select.appendChild(option);
+        });
         
+        select.disabled = false;
       } catch (error) {
         showMessage('Error loading business units: ' + error.message, 'error');
       }
@@ -1724,30 +1073,34 @@
           `https://api.${CONFIG.region}/api/v2/workforcemanagement/businessunits/${businessUnitId}/planninggroups?pageSize=100`
         );
         
-        // Update planning groups map
+        const select = document.getElementById('planningGroup');
+        select.innerHTML = '';
+        
+        const allOption = document.createElement('option');
+        allOption.value = '__ALL__';
+        allOption.textContent = 'All planning groups';
+        select.appendChild(allOption);
+        
         state.planningGroupsMap = {};
         planningGroups.forEach(pg => {
           state.planningGroupsMap[pg.id] = pg.name;
+          const option = document.createElement('option');
+          option.value = pg.id;
+          option.textContent = pg.name;
+          select.appendChild(option);
         });
-
-        // Update dropdown options
-        const options = planningGroups.map(pg => ({
-          value: pg.id,
-          label: pg.name
-        })).sort((a, b) => a.label.localeCompare(b.label));
-
-        if (state.planningGroupDropdown) {
-          state.planningGroupDropdown.setOptions(options);
-        }
         
+        select.disabled = false;
         updateLoadButtonState();
       } catch (error) {
         showMessage('Error loading planning groups: ' + error.message, 'error');
+        document.getElementById('planningGroup').innerHTML = '<option value="">-- Error loading groups --</option>';
       }
     }
 
-    async function fetchIntradayData(date, planningGroupIds = [], mediaTypes = []) {
-      const businessUnitId = state.businessUnitDropdown ? state.businessUnitDropdown.getSelectedValue() : null;
+    async function fetchIntradayData(date) {
+      const businessUnitId = document.getElementById('businessUnitSelect').value;
+      const planningGroupId = document.getElementById('planningGroup').value;
       
       if (!businessUnitId) {
         return { date, data: null, error: 'No business unit selected' };
@@ -1760,8 +1113,8 @@
           intervalLengthMinutes: 15
         };
         
-        if (planningGroupIds.length > 0) {
-          requestBody.planningGroupIds = planningGroupIds;
+        if (planningGroupId && planningGroupId !== '__ALL__') {
+          requestBody.planningGroupIds = [planningGroupId];
         }
         
         const response = await fetch(`https://api.${CONFIG.region}/api/v2/workforcemanagement/businessunits/${businessUnitId}/intraday`, {
@@ -1795,140 +1148,122 @@
       }
     }
 
-    // ===== FIXED: processDayData with safer media type handling =====
     function processDayData(data) {
       if (!data?.result?.intradayDataGroupings) return [];
 
-      const normalize = v => (v || '').toString().toLowerCase();
-      
-      const selectedPlanningGroups = state.planningGroupDropdown
-        ? state.planningGroupDropdown.getSelectedValues()
-        : [];
-
-      const selectedMediaTypesRaw = state.mediaTypeDropdown
-        ? state.mediaTypeDropdown.getSelectedValues()
-        : [];
-
-      const selectedMediaTypes = selectedMediaTypesRaw.map(normalize);
+      const uiMediaType = document.getElementById('mediaType').value;
+      const uiPg = document.getElementById('planningGroup').value;
 
       return data.result.intradayDataGroupings
         .filter(g => {
-          const mediaType = normalize(g.mediaType);
-
-          // Media type filtering (respect "all" and case differences, avoid filtering everything out)
-          if (selectedMediaTypes.length > 0 && !selectedMediaTypes.includes('all')) {
-            if (!mediaType || !selectedMediaTypes.includes(mediaType)) {
-              return false;
-            }
+          if (uiMediaType) {
+            if (g.mediaType && g.mediaType !== uiMediaType) return false;
           }
-
-          // Planning group filtering
-          if (selectedPlanningGroups.length > 0 &&
-              (!g.planningGroupId || !selectedPlanningGroups.includes(g.planningGroupId))) {
-            return false;
+          if (uiPg && uiPg !== '__ALL__') {
+            if (g.planningGroupId && g.planningGroupId !== uiPg) return false;
           }
-
           return true;
         })
         .map(g => ({
           forecast: g.forecastDataSummary || {},
           prediction: getPerformancePredictionData(g),
-          planningGroupId: g.planningGroupId,
-          mediaType: g.mediaType
+          planningGroupId: g.planningGroupId || null,
+          mediaType: g.mediaType || null
         }));
     }
 
+
     async function fetchDataForDateRange(startDate, endDate) {
       const days = getDateRange(startDate, endDate);
-      const totalDays = days.length;
-      const selectedPlanningGroups = state.planningGroupDropdown ? state.planningGroupDropdown.getSelectedValues() : [];
-      const selectedMediaTypes = state.mediaTypeDropdown ? state.mediaTypeDropdown.getSelectedValues() : [];
       
-      if (state.isFetchingData) {
-        showMessage('A data fetch is already in progress', 'error');
-        return;
+      if (days.length > 30) {
+        showMessage(`Warning: Large date range (${days.length} days). This may take a while and could hit rate limits.`, 'info');
       }
       
-      state.isFetchingData = true;
-      state.fetchCancelled = false;
+      showMessage(`Loading forecast data for ${days.length} days...`, 'info');
+      
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      progressBar.style.display = 'block';
+      progressFill.style.width = '0%';
+      
       state.dateRangeData = [];
       
-      showProgressBar();
-      updateProgress(0, totalDays, 'Starting data fetch...');
+      const batchSize = CONFIG.maxDaysPerRequest;
+      let completed = 0;
       
-      try {
-        if (totalDays > 30) {
-          showMessage(`Fetching ${totalDays} days of forecast data. Wider date ranges may take longer to generate`, 'info');
-        }
+      for (let i = 0; i < days.length; i += batchSize) {
+        const batch = days.slice(i, i + batchSize);
         
-        const batchSize = CONFIG.maxDaysPerRequest;
-        let processed = 0;
-        
-        for (let i = 0; i < totalDays; i += batchSize) {
-          if (state.fetchCancelled) {
-            showMessage('Data fetch cancelled', 'info');
-            break;
-          }
-          
-          const batch = days.slice(i, Math.min(i + batchSize, totalDays));
-          const batchResults = [];
-          
-          updateProgress(processed, totalDays, `Fetching batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(totalDays/batchSize)}...`);
-          
-          for (let j = 0; j < batch.length; j++) {
-            if (state.fetchCancelled) break;
+        const batchResults = await Promise.all(
+          batch.map(async (day, index) => {
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenRequests));
+            }
             
-            const day = batch[j];
-            updateProgress(processed + j, totalDays, `Fetching ${day.uk}...`);
+            const result = await fetchIntradayData(day.raw);
             
-            const result = await fetchIntradayData(day.raw, selectedPlanningGroups, selectedMediaTypes);
-            batchResults.push({
+            completed++;
+            progressFill.style.width = `${(completed / days.length) * 100}%`;
+            
+            return {
               ...result, 
               uk: day.uk,
               date: day.date,
               groupData: processDayData(result.data)
-            });
-            
-            if (j < batch.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenRequests));
-            }
-            
-            processed++;
-            updateProgress(processed, totalDays);
-          }
-          
-          state.dateRangeData.push(...batchResults);
-          
-          if (i + batchSize < totalDays && !state.fetchCancelled) {
-            updateProgress(processed, totalDays, 'Pausing between batches...');
-            await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenBatches));
-          }
-        }
+            };
+          })
+        );
         
-        if (!state.fetchCancelled) {
-          state.isDataLoaded = true;
-          refreshMediaTypeOptions();
-          renderAllData();
-          showMessage(`Successfully loaded ${processed} days of forecast data!`, 'success');
-        }
+        state.dateRangeData.push(...batchResults);
         
-      } catch (error) {
-        showMessage('Error fetching data: ' + error.message, 'error');
-      } finally {
-        state.isFetchingData = false;
-        hideProgressBar();
-        document.getElementById('loadDataBtn').disabled = false;
-        document.getElementById('loadDataBtn').textContent = 'Load Forecast Data';
+        if (i + batchSize < days.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
+      
+      progressBar.style.display = 'none';
+      
+      state.isDataLoaded = true;
+      refreshMediaTypeOptions();
+      renderAllData();
+      showMessage('Forecast data loaded successfully!', 'success');
     }
 
     // ===== UI Event Handlers =====
+    function onBusinessUnitChange() {
+      const businessUnitId = this.value;
+      const planningGroupSelect = document.getElementById('planningGroup');
+      
+      planningGroupSelect.innerHTML = '<option value="">-- Loading Planning Groups --</option>';
+      planningGroupSelect.disabled = true;
+      document.getElementById('loadDataBtn').disabled = true;
+      
+      if (businessUnitId) {
+        fetchPlanningGroups(businessUnitId);
+      } else {
+        planningGroupSelect.innerHTML = '<option value="">-- Select Business Unit First --</option>';
+      }
+    }
+
+    function onPlanningGroupChange() {
+      updateLoadButtonState();
+    }
+
+    function onConfigChange() {
+      if (state.isDataLoaded) {
+        renderAllData();
+        updateCharts();
+      }
+    }
+
     function updateLoadButtonState() {
-      const businessUnitId = state.businessUnitDropdown ? state.businessUnitDropdown.getSelectedValue() : null;
+      const businessUnitId = document.getElementById('businessUnitSelect').value;
+      const planningGroupId = document.getElementById('planningGroup').value;
       const dateFrom = document.getElementById('dateFrom').value;
       const dateTo = document.getElementById('dateTo').value;
       
-      document.getElementById('loadDataBtn').disabled = !(businessUnitId && dateFrom && dateTo);
+      document.getElementById('loadDataBtn').disabled = !(businessUnitId && planningGroupId && dateFrom && dateTo);
     }
 
     function loadData() {
@@ -1946,9 +1281,8 @@
       }
       
       const dayCount = Math.ceil((new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)) + 1;
-      
-      if (dayCount > 365) {
-        showMessage('Please select a date range of 365 days or less for performance reasons', 'info');
+      if (dayCount > 90) {
+        showMessage('Please select a date range of 90 days or less', 'error');
         return;
       }
       
@@ -1959,7 +1293,11 @@
       document.getElementById('loadDataBtn').textContent = 'Loading...';
       document.getElementById('consolidatedSection').style.display = 'none';
       
-      fetchDataForDateRange(dateFrom, dateTo);
+      fetchDataForDateRange(dateFrom, dateTo).finally(() => {
+        document.getElementById('loadDataBtn').disabled = false;
+        document.getElementById('loadDataBtn').textContent = 'Load Forecast Data';
+        updateCharts();
+      });
     }
 
     function setActiveTab(tabName) {
@@ -1976,7 +1314,7 @@
       }
     }
 
-    // ===== Data Rendering Functions =====
+    // ===== FIXED Data Rendering Functions =====
     function renderAllData() {
       renderConsolidatedTable();
       updateCharts();
@@ -1992,7 +1330,7 @@
         return;
       }
 
-      const viewType = state.viewTypeDropdown ? state.viewTypeDropdown.getSelectedValue() : 'daily';
+      const viewType = document.getElementById('viewType').value;
       
       let html = '';
       
@@ -2001,10 +1339,11 @@
           <div class="table-container" style="margin-bottom:30px;">
             <table class="consolidated-table">
               <tr>
-                <th colspan="7" class="group-header">Planning Group: ${group.name} - ${viewType.toUpperCase()} VIEW</th>
+                <th colspan="8" class="group-header">Planning Group: ${group.name} - ${viewType.toUpperCase()} VIEW</th>
               </tr>
               <tr>
                 <th class="sub-header">Period</th>
+                <th class="sub-header">Date Range</th>
                 <th class="sub-header">Offered</th>
                 <th class="sub-header">Avg Handle Time</th>
                 <th class="sub-header">Service Level</th>
@@ -2014,6 +1353,7 @@
               </tr>
         `;
 
+        // Filter data for this specific planning group
         const groupData = state.dateRangeData.map(day => ({
           ...day,
           groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
@@ -2024,6 +1364,7 @@
         let grandTotals = { offered: 0, aht: 0, ahtCount: 0, sl: 0, slCount: 0, asa: 0, asaCount: 0, occupancy: 0, occupancyCount: 0, staffed: 0 };
 
         aggregatedData.forEach(period => {
+          // Add to grand totals
           grandTotals.offered += period.offered;
           grandTotals.aht += period.aht;
           grandTotals.ahtCount += period.ahtCount;
@@ -2035,9 +1376,14 @@
           grandTotals.occupancyCount += period.occupancyCount;
           grandTotals.staffed += period.staffed;
 
+          const dateRange = viewType === 'daily' ? 
+            period.label : 
+            `${getUKFormattedDate(period.startDate)} - ${getUKFormattedDate(period.endDate)}`;
+
           html += `
             <tr class="clickable-row" data-period="${period.label}" data-raw-date="${period.rawDate || ''}">
               <td>${period.label}</td>
+              <td>${dateRange}</td>
               <td>${formatNumber(period.offered)}</td>
               <td>${formatTime(period.ahtCount > 0 ? period.aht / period.ahtCount : 0)}</td>
               <td>${formatPercentage(period.slCount > 0 ? period.sl / period.slCount : null)}</td>
@@ -2048,13 +1394,14 @@
           `;
         });
 
+        // Add grand totals row
         html += `
           <tr class="weekly-totals-row">
-            <td><strong>GRAND TOTAL</strong></td>
+            <td colspan="2"><strong>GRAND TOTAL</strong></td>
             <td><strong>${formatNumber(grandTotals.offered)}</strong></td>
             <td><strong>${formatTime(grandTotals.ahtCount > 0 ? grandTotals.aht / grandTotals.ahtCount : 0)}</strong></td>
             <td><strong>${formatPercentage(grandTotals.slCount > 0 ? grandTotals.sl / grandTotals.slCount : null)}</strong></td>
-            <td><strong>${formatTime(grandTotals.asaCount > 0 ? grandTotals.asa / grandTotals.asaCount : 0)}</strong></td>
+            <td><strong>${formatTime(grandTotals.asaCount > 0 ? grandTotals.asa / grandTotals.asaCount : null)}</strong></td>
             <td><strong>${formatPercentage(grandTotals.occupancyCount > 0 ? grandTotals.occupancy / grandTotals.occupancyCount : null)}</strong></td>
             <td><strong>${formatNumber(grandTotals.staffed)}</strong></td>
           </tr>
@@ -2078,8 +1425,39 @@
 
     function showIntervalData(period, rawDate) {
       state.selectedDayForIntervals = period;
+      setActiveTab('interval');
+      render15MinTable(period, rawDate);
+    }
+
+    function generateAllIntervals() {
+      const intervals = [];
+      for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          intervals.push({
+            time: timeString,
+            offered: 0,
+            aht: 0,
+            sl: '-',
+            asa: 0,
+            occupancy: '-',
+            staffed: 0
+          });
+        }
+      }
+      return intervals;
+    }
+
+    function render15MinTable(period, rawDate) {
+      const container = document.getElementById('intervalTableContainer');
+      const mediaTypeFilter = document.getElementById('mediaType').value;
       
-      // Find the day data
+      if (!period) {
+        container.innerHTML = '<div class="no-data">Click on a day in the Forecast Data tab to view interval data</div>';
+        return;
+      }
+
+      // Try to find the day data using rawDate if available, otherwise parse from period
       let dayData;
       if (rawDate) {
         dayData = state.dateRangeData.find(d => d.uk === rawDate);
@@ -2090,174 +1468,93 @@
         }
       }
 
-      if (!dayData) {
-        showMessage('No data found for selected day', 'error');
+      if (!dayData || !dayData.data?.result?.intradayDataGroupings) {
+        container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
         return;
       }
 
-      state.selectedDayData = dayData;
-      document.getElementById('selectedDayTitle').textContent = period;
+      const planningGroups = groupsPresent();
+      let html = `<h3>15-minute Interval Data for ${period}</h3>`;
       
-      setActiveTab('interval');
-      renderIntervalTable();
-    }
-
-    function generateIntervalsForDay(intervalLength = 15) {
-      const intervals = [];
-      const startHour = parseInt(state.intervalFilter.openTime.split(':')[0]);
-      const startMinute = parseInt(state.intervalFilter.openTime.split(':')[1]);
-      const endHour = parseInt(state.intervalFilter.closeTime.split(':')[0]);
-      const endMinute = parseInt(state.intervalFilter.closeTime.split(':')[1]);
-      
-      const startTotalMinutes = startHour * 60 + startMinute;
-      const endTotalMinutes = endHour * 60 + endMinute;
-      
-      for (let minutes = startTotalMinutes; minutes < endTotalMinutes; minutes += intervalLength) {
-        const hour = Math.floor(minutes / 60);
-        const minute = minutes % 60;
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        intervals.push({
-          time: timeString,
-          offered: 0,
-          aht: 0,
-          sl: '-',
-          asa: 0,
-          occupancy: '-',
-          staffed: 0
-        });
-      }
-      return intervals;
-    }
-
-    function renderIntervalTable() {
-      if (!state.selectedDayData || !state.selectedDayData.data?.result?.intradayDataGroupings) {
-        document.getElementById('intervalTableContainer').innerHTML = '<div class="no-data">No interval data available for this date</div>';
-        return;
-      }
-
-      const container = document.getElementById('intervalTableContainer');
-      const selectedPlanningGroups = state.planningGroupDropdown ? state.planningGroupDropdown.getSelectedValues() : [];
-      const selectedMediaTypes = state.mediaTypeDropdown ? state.mediaTypeDropdown.getSelectedValues() : [];
-      const intervalLength = state.intervalLengthDropdown ? parseInt(state.intervalLengthDropdown.getSelectedValue() || '15') : 15;
-      
-      // Get planning groups from the day's data
-      const planningGroups = [];
-      state.selectedDayData.data.result.intradayDataGroupings.forEach(group => {
-        if (group.planningGroupId) {
-          const name = state.planningGroupsMap[group.planningGroupId] || `Group ${group.planningGroupId}`;
-          if (!planningGroups.some(pg => pg.id === group.planningGroupId)) {
-            planningGroups.push({ id: group.planningGroupId, name });
-          }
-        }
-      });
-
-      // Filter by selected planning groups if any are selected
-      const filteredPlanningGroups = selectedPlanningGroups.length > 0 
-        ? planningGroups.filter(pg => selectedPlanningGroups.includes(pg.id))
-        : planningGroups;
-
-      if (filteredPlanningGroups.length === 0) {
-        container.innerHTML = '<div class="no-data">No planning groups found for the selected filters</div>';
-        return;
-      }
-
-      let html = '';
       state.currentIntervalData = [];
-
-      filteredPlanningGroups.forEach(group => {
-        // Find group data
-        const groupData = state.selectedDayData.data.result.intradayDataGroupings.find(g => 
-          g.planningGroupId === group.id && 
-          (selectedMediaTypes.length === 0 || selectedMediaTypes.includes('all') || selectedMediaTypes.includes(g.mediaType))
+      
+      planningGroups.forEach(group => {
+        const groupData = dayData.data.result.intradayDataGroupings.find(g =>
+          (!mediaTypeFilter || g.mediaType === mediaTypeFilter) &&
+          (!g.planningGroupId || g.planningGroupId === group.id || document.getElementById('planningGroup').value !== '__ALL__')
         );
 
-        if (!groupData || !groupData.forecastDataPerInterval) {
+        // Generate all 96 intervals for midnight to midnight
+        const allIntervals = generateAllIntervals();
+        
+        if (groupData && groupData.forecastDataPerInterval) {
+          // Map API data to our intervals
+          groupData.forecastDataPerInterval.forEach((interval, index) => {
+            if (index < allIntervals.length) {
+              const forecast = interval.forecast || {};
+              const prediction = interval.performancePrediction || {};
+              
+              allIntervals[index].offered = forecast.offered || 0;
+              allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
+              allIntervals[index].sl = prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-';
+              allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
+              allIntervals[index].occupancy = prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-';
+              allIntervals[index].staffed = forecast.staffed || 0;
+            }
+          });
+
+          // Store for CSV export
+          state.currentIntervalData.push({
+            groupName: group.name,
+            intervals: allIntervals.map(interval => ({
+              time: interval.time,
+              offered: interval.offered,
+              aht: interval.aht,
+              sl: interval.sl,
+              asa: interval.asa,
+              occupancy: interval.occupancy,
+              staffed: interval.staffed
+            }))
+          });
+
           html += `
             <div class="table-container" style="margin-bottom:30px;">
               <table class="consolidated-table">
                 <tr>
-                  <th colspan="7" class="group-header">Planning Group: ${group.name} - No interval data available</th>
+                  <th colspan="7" class="group-header">Planning Group: ${group.name} - 15-min Intervals</th>
                 </tr>
-              </table>
-            </div>
+                <tr>
+                  <th class="sub-header">Time</th>
+                  <th class="sub-header">Offered</th>
+                  <th class="sub-header">Avg Handle Time</th>
+                  <th class="sub-header">Service Level</th>
+                  <th class="sub-header">Avg Speed Answer</th>
+                  <th class="sub-header">Occupancy</th>
+                  <th class="sub-header">Staffed</th>
+                </tr>
           `;
-          return;
+
+          allIntervals.forEach(interval => {
+            html += `
+              <tr>
+                <td>${interval.time}</td>
+                <td>${formatNumber(interval.offered)}</td>
+                <td>${formatTime(interval.aht)}</td>
+                <td>${interval.sl}</td>
+                <td>${formatTime(interval.asa)}</td>
+                <td>${interval.occupancy}</td>
+                <td>${formatNumber(interval.staffed)}</td>
+              </tr>
+            `;
+          });
+
+          html += `</table></div>`;
         }
-
-        // Generate intervals based on selected time range and interval length
-        const intervals = generateIntervalsForDay(intervalLength);
-        
-        // Map 15-minute API data to our intervals
-        groupData.forecastDataPerInterval.forEach((apiInterval, index) => {
-          const apiHour = Math.floor(index / 4);
-          const apiMinute = (index % 4) * 15;
-          const apiTimeString = `${apiHour.toString().padStart(2, '0')}:${apiMinute.toString().padStart(2, '0')}`;
-          
-          // Find matching interval
-          const targetInterval = intervals.find(int => int.time === apiTimeString);
-          if (targetInterval) {
-            const forecast = apiInterval.forecast || {};
-            const prediction = apiInterval.performancePrediction || {};
-            
-            targetInterval.offered = forecast.offered || 0;
-            targetInterval.aht = forecast.averageHandleTimeSeconds || 0;
-            targetInterval.sl = prediction?.serviceLevelPercent ? prediction.serviceLevelPercent : '-';
-            targetInterval.asa = prediction?.averageSpeedOfAnswerSeconds || 0;
-            targetInterval.occupancy = prediction?.occupancyPercent ? prediction.occupancyPercent : '-';
-            targetInterval.staffed = forecast.staffed || 0;
-          }
-        });
-
-        // Store for CSV export
-        state.currentIntervalData.push({
-          groupName: group.name,
-          intervals: intervals.map(interval => ({
-            time: interval.time,
-            offered: interval.offered,
-            aht: interval.aht,
-            sl: interval.sl === '-' ? '-' : formatPercentage(interval.sl),
-            asa: interval.asa,
-            occupancy: interval.occupancy === '-' ? '-' : formatPercentage(interval.occupancy),
-            staffed: interval.staffed
-          }))
-        });
-
-        html += `
-          <div class="table-container" style="margin-bottom:30px;">
-            <table class="consolidated-table">
-              <tr>
-                <th colspan="7" class="group-header">Planning Group: ${group.name} - ${intervalLength}-min Intervals (${state.intervalFilter.openTime} - ${state.intervalFilter.closeTime})</th>
-              </tr>
-              <tr>
-                <th class="sub-header">Time</th>
-                <th class="sub-header">Offered</th>
-                <th class="sub-header">Avg Handle Time</th>
-                <th class="sub-header">Service Level</th>
-                <th class="sub-header">Avg Speed Answer</th>
-                <th class="sub-header">Occupancy</th>
-                <th class="sub-header">Staffed</th>
-              </tr>
-        `;
-
-        intervals.forEach(interval => {
-          const slDisplay = interval.sl === '-' ? '-' : formatPercentage(interval.sl);
-          const occupancyDisplay = interval.occupancy === '-' ? '-' : formatPercentage(interval.occupancy);
-          
-          html += `
-            <tr>
-              <td>${interval.time}</td>
-              <td>${formatNumber(interval.offered)}</td>
-              <td>${formatTime(interval.aht)}</td>
-              <td>${slDisplay}</td>
-              <td>${formatTime(interval.asa)}</td>
-              <td>${occupancyDisplay}</td>
-              <td>${formatNumber(interval.staffed)}</td>
-            </tr>
-          `;
-        });
-
-        html += `</table></div>`;
       });
+
+      if (html === `<h3>15-minute Interval Data for ${period}</h3>`) {
+        html += '<div class="no-data">No interval data available for this date and planning group</div>';
+      }
 
       container.innerHTML = html;
     }
@@ -2274,22 +1571,14 @@
 
     function refreshMediaTypeOptions() {
       const mediaTypes = getAllMediaTypesFromData();
+      const select = document.getElementById('mediaType');
+      const currentValue = select.value;
       
-      if (state.mediaTypeDropdown && mediaTypes.length > 0) {
-        const options = mediaTypes.map(type => ({
-          value: type,
-          label: type
-        }));
-        
-        // Add "All" option
-        options.unshift({ value: 'all', label: 'All Media Types' });
-        
-        state.mediaTypeDropdown.setOptions(options);
-        
-        // Select "all" by default if nothing selected
-        if (state.mediaTypeDropdown.getSelectedValues().length === 0) {
-          state.mediaTypeDropdown.setSelectedValues(['all']);
-        }
+      select.innerHTML = `<option value="">-- All Media Types --</option>` + 
+        mediaTypes.map(type => `<option value="${type}">${type}</option>`).join('');
+      
+      if (mediaTypes.includes(currentValue) || currentValue === '') {
+        select.value = currentValue;
       }
     }
 
@@ -2298,18 +1587,17 @@
       
       state.dateRangeData.forEach(day => {
         day.data?.result?.intradayDataGroupings?.forEach(group => {
-          const id = group.planningGroupId;
-          if (id) {
-            const name = state.planningGroupsMap[id] || `Group ${id}`;
-            groupsMap.set(id, { id, name });
-          }
+          const id = group.planningGroupId || document.getElementById('planningGroup').value || 'unknown';
+          const name = state.planningGroupsMap[id] || 
+            document.getElementById('planningGroup').selectedOptions[0]?.text || '(Planning Group)';
+          groupsMap.set(id, name);
         });
       });
       
-      return Array.from(groupsMap.values());
+      return Array.from(groupsMap, ([id, name]) => ({ id, name }));
     }
 
-    // ===== Chart Functions =====
+    // ===== FIXED Chart Functions =====
     function updateCharts() {
       if (!state.isDataLoaded) {
         document.getElementById('chartsDataContainer').innerHTML = '<div class="no-data">Load forecast data to view charts</div>';
@@ -2332,6 +1620,7 @@
         return;
       }
 
+      // Use first planning group for the chart
       const group = planningGroups[0];
       const labels = [];
       const offeredData = [];
@@ -2339,13 +1628,16 @@
       const serviceLevelData = [];
       const occupancyData = [];
 
+      // Filter data for this specific planning group
       const groupData = state.dateRangeData.map(day => ({
         ...day,
         groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
       }));
 
-      const chartViewType = state.chartViewTypeDropdown ? state.chartViewTypeDropdown.getSelectedValue() : 'daily';
+      const chartViewType = document.getElementById('chartViewType').value;
       const aggregatedData = aggregateDataByPeriod(groupData, chartViewType);
+      
+      console.log(`Chart rendering with ${aggregatedData.length} periods for view type: ${chartViewType}`);
       
       aggregatedData.forEach(period => {
         labels.push(period.label);
@@ -2578,77 +1870,22 @@
     }
 
     function initializeApp() {
-      // Create all dropdowns
-      state.businessUnitDropdown = createCheckboxDropdown('businessUnitContainer', {
-        placeholder: 'Select Business Unit',
-        initialOptions: [],
-        initialSelected: [],
-        singleSelect: true
-      });
-
-      state.planningGroupDropdown = createCheckboxDropdown('planningGroupContainer', {
-        placeholder: 'Select Planning Groups',
-        initialOptions: [],
-        initialSelected: []
-      });
-
-      state.mediaTypeDropdown = createCheckboxDropdown('mediaTypeContainer', {
-        placeholder: 'Select Media Types',
-        initialOptions: [
-          { value: 'all', label: 'All Media Types' },
-          { value: 'Voice', label: 'Voice' },
-          { value: 'Message', label: 'Message' }
-        ],
-        initialSelected: ['all']
-      });
-
-      state.viewTypeDropdown = createCheckboxDropdown('viewTypeContainer', {
-        placeholder: 'Select View Type',
-        initialOptions: [
-          { value: 'daily', label: 'Daily View' },
-          { value: 'weekly', label: 'Weekly View' },
-          { value: 'monthly', label: 'Monthly View' }
-        ],
-        initialSelected: ['daily'],
-        singleSelect: true
-      });
-
-      state.intervalLengthDropdown = createCheckboxDropdown('intervalLengthContainer', {
-        placeholder: 'Select Interval Length',
-        initialOptions: [
-          { value: '15', label: '15 minutes' },
-          { value: '30', label: '30 minutes' },
-          { value: '45', label: '45 minutes' },
-          { value: '60', label: '60 minutes' }
-        ],
-        initialSelected: ['15'],
-        singleSelect: true
-      });
-
-      state.chartViewTypeDropdown = createCheckboxDropdown('chartViewTypeContainer', {
-        placeholder: 'Select Chart View Type',
-        initialOptions: [
-          { value: 'daily', label: 'Daily View' },
-          { value: 'weekly', label: 'Weekly View' },
-          { value: 'monthly', label: 'Monthly View' }
-        ],
-        initialSelected: ['daily'],
-        singleSelect: true
-      });
-
-      // Set up event listeners
+      document.getElementById('businessUnitSelect').addEventListener('change', onBusinessUnitChange);
+      document.getElementById('planningGroup').addEventListener('change', onPlanningGroupChange);
+      document.getElementById('mediaType').addEventListener('change', onConfigChange);
+      document.getElementById('viewType').addEventListener('change', onConfigChange);
+      document.getElementById('chartViewType').addEventListener('change', updateCharts);
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
       
       // Export buttons
       document.getElementById('exportForecastBtn').addEventListener('click', exportForecastData);
       document.getElementById('exportIntervalBtn').addEventListener('click', exportIntervalData);
       
-      // Tab navigation
       document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
       document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
       document.getElementById('chartsTabButton').addEventListener('click', () => setActiveTab('charts'));
       
-      // Chart tabs
+      // Chart tab handlers
       document.querySelectorAll('.chart-tab').forEach(tab => {
         tab.addEventListener('click', function() {
           document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
@@ -2658,7 +1895,7 @@
         });
       });
       
-      // Time format toggles
+      // Time format toggle handlers
       document.getElementById('timeFormatToggle').addEventListener('change', function() {
         state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
         updateTimeFormatLabels();
@@ -2671,7 +1908,7 @@
         state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
         updateTimeFormatLabels();
         if (state.selectedDayForIntervals && state.isDataLoaded) {
-          renderIntervalTable();
+          render15MinTable(state.selectedDayForIntervals);
         }
       });
       
@@ -2684,28 +1921,8 @@
         document.getElementById('timeFormatToggle').checked = this.checked;
       });
       
-      // Interval controls
-      document.getElementById('openTime').addEventListener('change', function() {
-        state.intervalFilter.openTime = this.value;
-      });
-      
-      document.getElementById('closeTime').addEventListener('change', function() {
-        state.intervalFilter.closeTime = this.value;
-      });
-      
-      document.getElementById('applyIntervalFilter').addEventListener('click', function() {
-        state.intervalFilter.openTime = document.getElementById('openTime').value;
-        state.intervalFilter.closeTime = document.getElementById('closeTime').value;
-        const intervalLength = state.intervalLengthDropdown ? state.intervalLengthDropdown.getSelectedValue() : '15';
-        state.intervalFilter.intervalLength = parseInt(intervalLength);
-        if (state.selectedDayData) {
-          renderIntervalTable();
-        }
-      });
-      
       updateTimeFormatLabels();
       
-      // Set default dates
       const today = new Date();
       const lastWeek = new Date();
       lastWeek.setDate(today.getDate() - 7);
@@ -2714,13 +1931,6 @@
       document.getElementById('dateTo').value = today.toISOString().split('T')[0];
       
       fetchBusinessUnits();
-    }
-
-    function onConfigChange() {
-      if (state.isDataLoaded) {
-        renderAllData();
-        updateCharts();
-      }
     }
   </script>
 </body>
