@@ -368,11 +368,23 @@
       margin-bottom: 15px;
     }
 
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: #f0f0f0;
+      border-radius: 24px;
+      padding: 4px;
+      position: relative;
+      height: 32px;
+    }
+
     .toggle-switch {
       position: relative;
       display: inline-block;
       width: 50px;
       height: 24px;
+      margin: 0 10px;
     }
 
     .toggle-switch input {
@@ -415,7 +427,27 @@
 
     .toggle-label {
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 80px;
+      text-align: center;
+      color: var(--text-light);
+    }
+
+    .toggle-label.active {
+      font-weight: 700;
+      color: var(--text-color);
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Hide the original single label */
+    #timeFormatLabel,
+    #intervalTimeFormatLabel {
+      display: none;
     }
 
     .export-buttons {
@@ -520,12 +552,15 @@
             </select>
           </div>
           <div class="time-format-toggle">
-            <span class="toggle-label">Time Format:</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="timeFormatToggle">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-label" id="timeFormatLabel">HH:MM:SS</span>
+            <span style="font-weight: 600; margin-right: 10px;">Time Format:</span>
+            <div class="toggle-container">
+              <span class="toggle-label active" data-format="seconds">Seconds</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="timeFormatToggle">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label" data-format="hhmmss">HH:MM:SS</span>
+            </div>
           </div>
         </div>
         <div class="export-buttons">
@@ -542,12 +577,15 @@
       <div id="intervalTab" class="tab-content">
         <div class="chart-controls">
           <div class="time-format-toggle">
-            <span class="toggle-label">Time Format:</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="intervalTimeFormatToggle">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-label" id="intervalTimeFormatLabel">HH:MM:SS</span>
+            <span style="font-weight: 600; margin-right: 10px;">Time Format:</span>
+            <div class="toggle-container">
+              <span class="toggle-label active" data-format="seconds">Seconds</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="intervalTimeFormatToggle">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label" data-format="hhmmss">HH:MM:SS</span>
+            </div>
           </div>
         </div>
         <div class="export-buttons">
@@ -611,7 +649,7 @@
       selectedDayForIntervals: null,
       isDataLoaded: false,
       currentChartType: 'volume',
-      timeFormat: 'hhmmss', // 'hhmmss' or 'seconds'
+      timeFormat: 'seconds', // 'hhmmss' or 'seconds'
       currentIntervalData: null
     };
 
@@ -749,16 +787,46 @@
       }
     }
 
+    // ===== Updated Time Format Functions =====
     function updateTimeFormatLabels() {
-      const label = document.getElementById('timeFormatLabel');
-      const intervalLabel = document.getElementById('intervalTimeFormatLabel');
+      // Update both toggle containers
+      const format = state.timeFormat;
       
-      if (state.timeFormat === 'seconds') {
-        label.textContent = 'Seconds';
-        intervalLabel.textContent = 'Seconds';
-      } else {
-        label.textContent = 'HH:MM:SS';
-        intervalLabel.textContent = 'HH:MM:SS';
+      // Update main toggle
+      const mainLabels = document.querySelectorAll('#dailyTab .toggle-label');
+      mainLabels.forEach(label => {
+        const labelFormat = label.getAttribute('data-format');
+        if (labelFormat === format) {
+          label.classList.add('active');
+        } else {
+          label.classList.remove('active');
+        }
+      });
+      
+      // Update interval toggle
+      const intervalLabels = document.querySelectorAll('#intervalTab .toggle-label');
+      intervalLabels.forEach(label => {
+        const labelFormat = label.getAttribute('data-format');
+        if (labelFormat === format) {
+          label.classList.add('active');
+        } else {
+          label.classList.remove('active');
+        }
+      });
+      
+      // Also update the toggle switch position
+      const toggleChecked = format === 'seconds' ? false : true;
+      document.getElementById('timeFormatToggle').checked = toggleChecked;
+      document.getElementById('intervalTimeFormatToggle').checked = toggleChecked;
+    }
+
+    function toggleTimeFormat() {
+      // Toggle between seconds and hhmmss
+      state.timeFormat = state.timeFormat === 'seconds' ? 'hhmmss' : 'seconds';
+      updateTimeFormatLabels();
+      
+      if (state.isDataLoaded) {
+        renderAllData();
       }
     }
 
@@ -1970,21 +2038,29 @@
         });
       });
       
-      // Time format toggle handlers
+      // Time format toggle handlers - updated
       document.getElementById('timeFormatToggle').addEventListener('change', function() {
-        state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
-        updateTimeFormatLabels();
-        if (state.isDataLoaded) {
-          renderAllData();
+        toggleTimeFormat();
+        if (state.selectedDayForIntervals && state.isDataLoaded) {
+          render15MinTable(state.selectedDayForIntervals);
         }
       });
       
       document.getElementById('intervalTimeFormatToggle').addEventListener('change', function() {
-        state.timeFormat = this.checked ? 'seconds' : 'hhmmss';
-        updateTimeFormatLabels();
+        toggleTimeFormat();
         if (state.selectedDayForIntervals && state.isDataLoaded) {
           render15MinTable(state.selectedDayForIntervals);
         }
+      });
+      
+      // Add click handlers for the labels
+      document.querySelectorAll('.toggle-label').forEach(label => {
+        label.addEventListener('click', function() {
+          const clickedFormat = this.getAttribute('data-format');
+          if (clickedFormat !== state.timeFormat) {
+            toggleTimeFormat();
+          }
+        });
       });
       
       // Sync the toggles
@@ -1996,6 +2072,8 @@
         document.getElementById('timeFormatToggle').checked = this.checked;
       });
       
+      // Initialize time format state
+      state.timeFormat = 'seconds'; // Default to seconds
       updateTimeFormatLabels();
       
       const today = new Date();
