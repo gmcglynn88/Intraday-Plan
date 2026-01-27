@@ -260,6 +260,7 @@
       gap: 15px;
       margin-bottom: 20px;
       flex-wrap: wrap;
+      align-items: flex-end;
     }
 
     .chart-controls select {
@@ -302,6 +303,15 @@
       }
       
       .chart-controls select {
+        width: 100%;
+      }
+      
+      .control-row {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      .control-item {
         width: 100%;
       }
     }
@@ -361,11 +371,31 @@
       color: white;
     }
 
-    .time-format-toggle {
+    .control-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 30px;
       margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+    }
+
+    .control-item label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .time-format-toggle {
+      display: flex;
+      flex-direction: column;
+      min-width: 250px;
     }
 
     .toggle-container {
@@ -377,6 +407,7 @@
       padding: 4px;
       position: relative;
       height: 32px;
+      margin-top: 3px;
     }
 
     .toggle-switch {
@@ -542,8 +573,8 @@
       </div>
       
       <div id="dailyTab" class="tab-content active">
-        <div class="chart-controls">
-          <div>
+        <div class="control-row">
+          <div class="control-item">
             <label for="viewType">View Type:</label>
             <select id="viewType">
               <option value="daily">Daily View</option>
@@ -552,7 +583,7 @@
             </select>
           </div>
           <div class="time-format-toggle">
-            <span style="font-weight: 600; margin-right: 10px;">Time Format:</span>
+            <label>Time Format:</label>
             <div class="toggle-container">
               <span class="toggle-label active" data-format="seconds">Seconds</span>
               <label class="toggle-switch">
@@ -575,9 +606,9 @@
       </div>
       
       <div id="intervalTab" class="tab-content">
-        <div class="chart-controls">
+        <div class="control-row">
           <div class="time-format-toggle">
-            <span style="font-weight: 600; margin-right: 10px;">Time Format:</span>
+            <label>Time Format:</label>
             <div class="toggle-container">
               <span class="toggle-label active" data-format="seconds">Seconds</span>
               <label class="toggle-switch">
@@ -597,8 +628,8 @@
 
       <div id="chartsTab" class="tab-content">
         <h2 class="section-title">Charts & Analytics</h2>
-        <div class="chart-controls">
-          <div>
+        <div class="control-row">
+          <div class="control-item">
             <label for="chartViewType">View Type:</label>
             <select id="chartViewType">
               <option value="daily">Daily View</option>
