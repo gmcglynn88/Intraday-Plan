@@ -678,6 +678,7 @@
       viewType: 'daily',
       charts: {},
       selectedDayForIntervals: null,
+      selectedRawDate: null,
       isDataLoaded: false,
       currentChartType: 'volume',
       timeFormat: 'seconds', // 'hhmmss' or 'seconds'
@@ -952,9 +953,11 @@
       
       // For daily view, return individual days without aggregation
       if (periodType === 'daily') {
-        return data.map(day => {
+        const dailyData = [];
+        
+        data.forEach(day => {
           if (!day.date || !day.groupData || day.groupData.length === 0) {
-            return null;
+            return;
           }
           
           let offered = 0, aht = 0, ahtCount = 0, sl = 0, slCount = 0, 
@@ -981,7 +984,7 @@
             }
           });
           
-          return {
+          dailyData.push({
             offered: offered,
             aht: aht,
             ahtCount: ahtCount,
@@ -996,8 +999,10 @@
             endDate: new Date(day.date),
             daysInPeriod: 1,
             rawDate: day.uk // Store the raw date for interval lookup
-          };
-        }).filter(day => day !== null);
+          });
+        });
+        
+        return dailyData;
       }
       
       // For weekly and monthly views, use the original aggregation logic
@@ -1447,7 +1452,11 @@
           occupancyCount: 0 
         };
 
-        aggregatedData.forEach(period => {
+        aggregatedData.forEach((period, index) => {
+          // For daily view, we need to get the actual day data to store the raw date
+          const day = viewType === 'daily' ? groupData[index] : null;
+          const rawDate = viewType === 'daily' && day ? day.uk : '';
+          
           // Add to grand totals
           grandTotals.offered += period.offered;
           grandTotals.aht += period.aht;
@@ -1464,7 +1473,7 @@
             `${getUKFormattedDate(period.startDate)} - ${getUKFormattedDate(period.endDate)}`;
 
           html += `
-            <tr class="clickable-row" data-period="${period.label}" data-raw-date="${period.rawDate || ''}">
+            <tr class="clickable-row" data-period="${period.label}" data-raw-date="${rawDate}" data-view-type="${viewType}">
               <td>${period.label}</td>
               <td>${dateRange}</td>
               <td>${formatNumber(period.offered)}</td>
@@ -1500,15 +1509,40 @@
         row.addEventListener('click', function() {
           const period = this.getAttribute('data-period');
           const rawDate = this.getAttribute('data-raw-date');
-          console.log('Clicked row - period:', period, 'rawDate:', rawDate);
-          showIntervalData(period, rawDate);
+          const viewType = this.getAttribute('data-view-type');
+          
+          console.log('Clicked row - period:', period, 'rawDate:', rawDate, 'viewType:', viewType);
+          
+          // For daily view, we need to extract the actual date from the period label
+          if (viewType === 'daily') {
+            // The period label is in format "Wed 26/11/2025"
+            // Extract the date part (26/11/2025)
+            const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
+            if (dateMatch) {
+              const extractedDate = dateMatch[1];
+              console.log('Extracted date from daily view period:', extractedDate);
+              showIntervalData(period, extractedDate);
+            } else {
+              showIntervalData(period, rawDate);
+            }
+          } else {
+            showIntervalData(period, rawDate);
+          }
         });
       });
     }
 
     function showIntervalData(period, rawDate) {
       state.selectedDayForIntervals = period;
+      state.selectedRawDate = rawDate;
       setActiveTab('interval');
+      
+      console.log('showIntervalData called with:', {
+        period: period,
+        rawDate: rawDate,
+        availableDates: state.dateRangeData.map(d => d.uk)
+      });
+      
       render15MinTable(period, rawDate);
     }
 
@@ -1546,13 +1580,27 @@
 
       // Try to find the day data using rawDate if available, otherwise parse from period
       let dayData;
-      
+
+      console.log('Searching for date:', rawDate, 'in', state.dateRangeData.length, 'days of data');
+
       // First try using rawDate if provided
       if (rawDate) {
+        // Try exact match first
         dayData = state.dateRangeData.find(d => {
-          console.log('Comparing rawDate:', rawDate, 'with d.uk:', d.uk);
-          return d.uk === rawDate;
+          const match = d.uk === rawDate;
+          if (match) console.log('Found exact match for rawDate:', rawDate);
+          return match;
         });
+        
+        // If not found, try to find by cleaning up the date
+        if (!dayData) {
+          // Remove any leading day of week if present
+          const cleanRawDate = rawDate.replace(/^[A-Za-z]{3}\s/, '');
+          console.log('Trying cleaned rawDate:', cleanRawDate);
+          
+          dayData = state.dateRangeData.find(d => d.uk === cleanRawDate);
+          if (dayData) console.log('Found match with cleaned date');
+        }
       }
       
       // If not found, try to extract date from period string
@@ -2073,14 +2121,14 @@
       document.getElementById('timeFormatToggle').addEventListener('change', function() {
         toggleTimeFormat();
         if (state.selectedDayForIntervals && state.isDataLoaded) {
-          render15MinTable(state.selectedDayForIntervals);
+          render15MinTable(state.selectedDayForIntervals, state.selectedRawDate);
         }
       });
       
       document.getElementById('intervalTimeFormatToggle').addEventListener('change', function() {
         toggleTimeFormat();
         if (state.selectedDayForIntervals && state.isDataLoaded) {
-          render15MinTable(state.selectedDayForIntervals);
+          render15MinTable(state.selectedDayForIntervals, state.selectedRawDate);
         }
       });
       
