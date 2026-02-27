@@ -1778,9 +1778,21 @@ groupData.forecastDataPerInterval.forEach((interval, index) => {
         `;
       }
 
-      container.innerHTML = html;
-    }
+   container.innerHTML = html;
 
+      // Auto-scroll to first interval with data
+      setTimeout(() => {
+        const rows = container.querySelectorAll('tr');
+        for (const row of rows) {
+          const cells = row.querySelectorAll('td');
+          if (cells.length > 1 && cells[1].textContent.trim() !== '0' && 
+              cells[1].textContent.trim() !== '-') {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            break;
+          }
+        }
+      }, 100);
+    }
     function findDayData(rawDate, period) {
       if (!rawDate && !period) return null;
       
