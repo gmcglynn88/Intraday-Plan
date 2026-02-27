@@ -1690,25 +1690,25 @@
           foundData = true;
           
           // FIXED: Access interval data directly from the interval object
-          groupData.forecastDataPerInterval.forEach((interval, index) => {
-            if (index < allIntervals.length) {
-              if (!interval) return;
-              
-              // For debugging - uncomment to see the actual structure
-              // console.log('Interval sample:', JSON.stringify(interval));
-              
-              // Access data directly from the interval object
-              // The structure is likely flat, not nested under .forecast
-              const prediction = interval.performancePrediction || {};
-              
-              allIntervals[index].offered = interval.offered || 0;
-              allIntervals[index].aht = interval.averageHandleTimeSeconds || 0;
-              allIntervals[index].sl = prediction.serviceLevelPercent !== undefined ? 
-                prediction.serviceLevelPercent : interval.serviceLevelPercent;
-              allIntervals[index].asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? 
-                prediction.averageSpeedOfAnswerSeconds : interval.averageSpeedOfAnswerSeconds || 0;
-              allIntervals[index].occupancy = prediction.occupancyPercent !== undefined ? 
-                prediction.occupancyPercent : interval.occupancyPercent;
+groupData.forecastDataPerInterval.forEach((interval, index) => {
+    if (index < allIntervals.length) {
+      if (!interval) return;
+
+      // Genesys API nests forecast data under forecastData key
+      const forecast = interval.forecastData || interval.forecast || interval;
+      // Prediction data is under performancePredictionData key
+      const prediction = interval.performancePredictionData || 
+                         interval.performancePrediction || {};
+
+      allIntervals[index].offered = forecast.offered || interval.offered || 0;
+      allIntervals[index].aht = forecast.averageHandleTimeSeconds || 
+                                interval.averageHandleTimeSeconds || 0;
+      allIntervals[index].sl = prediction.serviceLevelPercent ?? 
+                               forecast.serviceLevelPercent ?? null;
+      allIntervals[index].asa = prediction.averageSpeedOfAnswerSeconds || 
+                                forecast.averageSpeedOfAnswerSeconds || 0;
+      allIntervals[index].occupancy = prediction.occupancyPercent ?? 
+                                      forecast.occupancyPercent ?? null;
             }
           });
 
