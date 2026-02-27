@@ -1693,6 +1693,7 @@
 groupData.forecastDataPerInterval.forEach((interval, index) => {
     if (index < allIntervals.length) {
       if (!interval) return;
+if (index === 36) console.log('INTERVAL 9AM:', JSON.stringify(interval).substring(0, 800));
 
       // Genesys API nests forecast data under forecastData key
       const forecast = interval.forecastData || interval.forecast || interval;
