@@ -1692,9 +1692,9 @@
           // FIXED: Access interval data directly from the interval object
 groupData.forecastDataPerInterval.forEach((interval, index) => {
             if (index < allIntervals.length) {
+              if (index === 0) console.log('GROUP KEYS:', Object.keys(groupData));
               if (!interval) return;
               if (index === 36) console.log('INTERVAL 9AM:', JSON.stringify(interval).substring(0, 800));
-              if (index === 0) console.log('GROUP KEYS:', Object.keys(groupData));
 
       // Genesys API nests forecast data under forecastData key
       const forecast = interval.forecastData || interval.forecast || interval;
