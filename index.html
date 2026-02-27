@@ -475,12 +475,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    /* Hide the original single label */
-    #timeFormatLabel,
-    #intervalTimeFormatLabel {
-      display: none;
-    }
-
     .export-buttons {
       display: flex;
       gap: 10px;
@@ -499,6 +493,41 @@
 
     .export-btn:hover {
       background: var(--primary-color);
+    }
+
+    /* Interval granularity controls */
+    .granularity-control {
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+    }
+    
+    .granularity-buttons {
+      display: flex;
+      gap: 5px;
+      margin-top: 3px;
+    }
+    
+    .granularity-btn {
+      flex: 1;
+      padding: 6px 0;
+      background: #f0f0f0;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-light);
+      transition: all 0.2s ease;
+    }
+    
+    .granularity-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .granularity-btn:hover:not(.active) {
+      background: #e0e0e0;
     }
   </style>
 </head>
@@ -607,6 +636,15 @@
       
       <div id="intervalTab" class="tab-content">
         <div class="control-row">
+          <div class="granularity-control">
+            <label>Interval Granularity:</label>
+            <div class="granularity-buttons">
+              <button class="granularity-btn active" data-granularity="15">15 min</button>
+              <button class="granularity-btn" data-granularity="30">30 min</button>
+              <button class="granularity-btn" data-granularity="45">45 min</button>
+              <button class="granularity-btn" data-granularity="60">60 min</button>
+            </div>
+          </div>
           <div class="time-format-toggle">
             <label>Time Format:</label>
             <div class="toggle-container">
@@ -622,7 +660,7 @@
         <div class="export-buttons">
           <button class="export-btn" id="exportIntervalBtn">Export Interval Data to CSV</button>
         </div>
-        <h2 class="section-title">15-min Interval Data</h2>
+        <h2 class="section-title">Interval Data</h2>
         <div id="intervalTableContainer" class="loading">Click on a day in the Forecast Data tab to view interval data</div>
       </div>
 
@@ -681,8 +719,9 @@
       selectedRawDate: null,
       isDataLoaded: false,
       currentChartType: 'volume',
-      timeFormat: 'seconds', // 'hhmmss' or 'seconds'
-      currentIntervalData: null
+      timeFormat: 'seconds',
+      currentIntervalData: null,
+      intervalGranularity: 15 // Default to 15 minutes
     };
 
     // ===== Utility Functions =====
@@ -698,7 +737,7 @@
       seconds = Math.round(seconds);
       
       if (state.timeFormat === 'seconds') {
-        return seconds.toString(); // Remove the 's'
+        return seconds.toString();
       } else {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
@@ -709,15 +748,12 @@
 
     function formatNumber(num) {
       if (num === null || num === undefined) return '-';
-      return Number.isFinite(num) ? Math.round(num).toString() : '-'; // Round to whole numbers
+      return Number.isFinite(num) ? Math.round(num).toString() : '-';
     }
 
     function formatPercentage(num) {
       if (num === null || num === undefined) return '-';
-      // FIXED: The API is already returning percentages (77.5, 87.6, etc.), not decimals
-      // So we don't multiply by 100, just format it
-      const value = num; // Already a percentage
-      // Remove the cap at 100% since values might be above 100
+      const value = num;
       return Number.isFinite(value) ? value.toFixed(CONFIG.precision) + '%' : '-';
     }
 
@@ -789,7 +825,6 @@
       
       if (groupData.performancePredictionDataSummary) {
         const pred = groupData.performancePredictionDataSummary;
-        // FIXED: The API is already returning percentages, not decimals
         return {
           serviceLevelPercent: pred.serviceLevelPercent,
           averageSpeedOfAnswerSeconds: pred.averageSpeedOfAnswerSeconds,
@@ -819,12 +854,10 @@
       }
     }
 
-    // ===== Updated Time Format Functions =====
+    // ===== Time Format Functions =====
     function updateTimeFormatLabels() {
-      // Update both toggle containers
       const format = state.timeFormat;
       
-      // Update main toggle
       const mainLabels = document.querySelectorAll('#dailyTab .toggle-label');
       mainLabels.forEach(label => {
         const labelFormat = label.getAttribute('data-format');
@@ -835,7 +868,6 @@
         }
       });
       
-      // Update interval toggle
       const intervalLabels = document.querySelectorAll('#intervalTab .toggle-label');
       intervalLabels.forEach(label => {
         const labelFormat = label.getAttribute('data-format');
@@ -846,19 +878,20 @@
         }
       });
       
-      // Also update the toggle switch position
       const toggleChecked = format === 'seconds' ? false : true;
       document.getElementById('timeFormatToggle').checked = toggleChecked;
       document.getElementById('intervalTimeFormatToggle').checked = toggleChecked;
     }
 
     function toggleTimeFormat() {
-      // Toggle between seconds and hhmmss
       state.timeFormat = state.timeFormat === 'seconds' ? 'hhmmss' : 'seconds';
       updateTimeFormatLabels();
       
       if (state.isDataLoaded) {
         renderAllData();
+        if (state.selectedDayForIntervals && state.selectedRawDate) {
+          renderIntervalData(state.selectedDayForIntervals, state.selectedRawDate);
+        }
       }
     }
 
@@ -947,11 +980,10 @@
       exportToCSV(filename, csvContent);
     }
 
-    // ===== FIXED Data Aggregation Functions =====
+    // ===== Data Aggregation Functions =====
     function aggregateDataByPeriod(data, periodType) {
       console.log(`Aggregating ${data.length} days by ${periodType} view`);
       
-      // For daily view, return individual days without aggregation
       if (periodType === 'daily') {
         const dailyData = [];
         
@@ -998,14 +1030,13 @@
             startDate: new Date(day.date),
             endDate: new Date(day.date),
             daysInPeriod: 1,
-            rawDate: day.uk // Store the raw date for interval lookup
+            rawDate: day.uk
           });
         });
         
         return dailyData;
       }
       
-      // For weekly and monthly views, use the original aggregation logic
       const aggregated = {};
       
       data.forEach(day => {
@@ -1028,7 +1059,7 @@
             periodKey = `month-${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
             periodLabel = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
             break;
-          default: // daily (already handled above)
+          default:
             periodKey = `day-${day.raw}`;
             periodLabel = `${getDOWFromUK(day.uk)} ${day.uk}`;
         }
@@ -1053,12 +1084,10 @@
         
         const period = aggregated[periodKey];
         
-        // Update date range for this period
         if (date < period.startDate) period.startDate = new Date(date);
         if (date > period.endDate) period.endDate = new Date(date);
         period.daysInPeriod++;
         
-        // Sum up all metrics from all planning groups for this day
         day.groupData.forEach(group => {
           period.offered += group.forecast.offered || 0;
           period.aht += group.forecast.averageHandleTimeSeconds || 0;
@@ -1249,7 +1278,8 @@
         .map(g => ({
           forecast: g.forecastDataSummary || {},
           prediction: getPerformancePredictionData(g),
-          planningGroupId: g.planningGroupId
+          planningGroupId: g.planningGroupId,
+          forecastDataPerInterval: g.forecastDataPerInterval || [] // Preserve interval data
         }));
     }
 
@@ -1334,6 +1364,25 @@
       if (state.isDataLoaded) {
         renderAllData();
         updateCharts();
+      }
+    }
+
+    function onGranularityChange(granularity) {
+      state.intervalGranularity = parseInt(granularity);
+      
+      // Update active button state
+      document.querySelectorAll('.granularity-btn').forEach(btn => {
+        const btnGranularity = parseInt(btn.getAttribute('data-granularity'));
+        if (btnGranularity === state.intervalGranularity) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      
+      // Re-render interval data if a day is selected
+      if (state.selectedDayForIntervals && state.selectedRawDate) {
+        renderIntervalData(state.selectedDayForIntervals, state.selectedRawDate);
       }
     }
 
@@ -1432,10 +1481,12 @@
               </tr>
         `;
 
-        // Filter data for this specific planning group
         const groupData = state.dateRangeData.map(day => ({
           ...day,
-          groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
+          groupData: day.groupData?.filter(g => {
+            if (!g.planningGroupId && group.id === document.getElementById('planningGroup').value) return true;
+            return g.planningGroupId === group.id;
+          }) || []
         }));
 
         const aggregatedData = aggregateDataByPeriod(groupData, viewType);
@@ -1453,11 +1504,9 @@
         };
 
         aggregatedData.forEach((period, index) => {
-          // For daily view, we need to get the actual day data to store the raw date
           const day = viewType === 'daily' ? groupData[index] : null;
           const rawDate = viewType === 'daily' && day ? day.uk : '';
           
-          // Add to grand totals
           grandTotals.offered += period.offered;
           grandTotals.aht += period.aht;
           grandTotals.ahtCount += period.ahtCount;
@@ -1485,7 +1534,6 @@
           `;
         });
 
-        // Add grand totals row
         html += `
           <tr class="weekly-totals-row">
             <td colspan="2"><strong>GRAND TOTAL</strong></td>
@@ -1504,7 +1552,6 @@
       document.getElementById('consolidatedSection').style.display = 'block';
       document.getElementById('weeklySummary').style.display = 'none';
 
-      // Add click handlers for drill-down
       document.querySelectorAll('.clickable-row').forEach(row => {
         row.addEventListener('click', function() {
           const period = this.getAttribute('data-period');
@@ -1513,43 +1560,29 @@
           
           console.log('Clicked row - period:', period, 'rawDate:', rawDate, 'viewType:', viewType);
           
-          // For daily view, we need to extract the actual date from the period label
           if (viewType === 'daily') {
-            // The period label is in format "Wed 26/11/2025"
-            // Extract the date part (26/11/2025)
             const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
             if (dateMatch) {
               const extractedDate = dateMatch[1];
               console.log('Extracted date from daily view period:', extractedDate);
-              showIntervalData(period, extractedDate);
+              renderIntervalData(period, extractedDate);
             } else {
-              showIntervalData(period, rawDate);
+              renderIntervalData(period, rawDate);
             }
           } else {
-            showIntervalData(period, rawDate);
+            renderIntervalData(period, rawDate);
           }
         });
       });
     }
 
-    function showIntervalData(period, rawDate) {
-      state.selectedDayForIntervals = period;
-      state.selectedRawDate = rawDate;
-      setActiveTab('interval');
-      
-      console.log('showIntervalData called with:', {
-        period: period,
-        rawDate: rawDate,
-        availableDates: state.dateRangeData.map(d => d.uk)
-      });
-      
-      render15MinTable(period, rawDate);
-    }
-
-    function generateAllIntervals() {
+    function generateIntervals(granularity) {
       const intervals = [];
+      const stepsPerHour = 60 / granularity;
+      
       for (let hour = 0; hour < 24; hour++) {
-        for (let minute = 0; minute < 60; minute += 15) {
+        for (let step = 0; step < stepsPerHour; step++) {
+          const minute = step * granularity;
           const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
           intervals.push({
             time: timeString,
@@ -1557,15 +1590,68 @@
             aht: 0,
             sl: '-',
             asa: 0,
-            occupancy: '-'
+            occupancy: '-',
+            count: 0
           });
         }
       }
       return intervals;
     }
 
-    // ===== FIXED Interval Data Rendering =====
-    function render15MinTable(period, rawDate) {
+    function aggregateIntervals(intervals, granularity) {
+      if (granularity === 15) return intervals;
+      
+      const stepsToAggregate = granularity / 15;
+      const aggregated = [];
+      
+      for (let i = 0; i < intervals.length; i += stepsToAggregate) {
+        const group = intervals.slice(i, i + stepsToAggregate);
+        
+        const offered = group.reduce((sum, interval) => sum + (interval.offered || 0), 0);
+        const ahtSum = group.reduce((sum, interval) => sum + (interval.aht || 0), 0);
+        const ahtCount = group.filter(interval => interval.aht > 0).length;
+        const aht = ahtCount > 0 ? ahtSum / ahtCount : 0;
+        
+        const slValues = group
+          .map(interval => interval.sl)
+          .filter(sl => sl !== '-' && sl !== null && sl !== undefined)
+          .map(sl => parseFloat(sl));
+        const sl = slValues.length > 0 ? (slValues.reduce((a, b) => a + b, 0) / slValues.length).toFixed(1) + '%' : '-';
+        
+        const asaSum = group.reduce((sum, interval) => sum + (interval.asa || 0), 0);
+        const asaCount = group.filter(interval => interval.asa > 0).length;
+        const asa = asaCount > 0 ? asaSum / asaCount : 0;
+        
+        const occValues = group
+          .map(interval => interval.occupancy)
+          .filter(occ => occ !== '-' && occ !== null && occ !== undefined)
+          .map(occ => parseFloat(occ));
+        const occupancy = occValues.length > 0 ? (occValues.reduce((a, b) => a + b, 0) / occValues.length).toFixed(1) + '%' : '-';
+        
+        aggregated.push({
+          time: group[0].time,
+          offered: offered,
+          aht: aht,
+          sl: sl,
+          asa: asa,
+          occupancy: occupancy
+        });
+      }
+      
+      return aggregated;
+    }
+
+    function renderIntervalData(period, rawDate) {
+      state.selectedDayForIntervals = period;
+      state.selectedRawDate = rawDate;
+      setActiveTab('interval');
+      
+      console.log('renderIntervalData called with:', {
+        period: period,
+        rawDate: rawDate,
+        availableDates: state.dateRangeData.map(d => d.uk)
+      });
+      
       const container = document.getElementById('intervalTableContainer');
       const mediaTypeFilter = document.getElementById('mediaType').value;
       const selectedPlanningGroupId = document.getElementById('planningGroup').value;
@@ -1575,57 +1661,9 @@
         return;
       }
 
-      console.log('Looking for interval data for period:', period, 'rawDate:', rawDate);
-      console.log('Available dates in data:', state.dateRangeData.map(d => ({ uk: d.uk, hasData: !!d.data })));
-
-      // Try to find the day data using rawDate if available, otherwise parse from period
-      let dayData;
-
-      console.log('Searching for date:', rawDate, 'in', state.dateRangeData.length, 'days of data');
-
-      // First try using rawDate if provided
-      if (rawDate) {
-        // Try exact match first
-        dayData = state.dateRangeData.find(d => {
-          const match = d.uk === rawDate;
-          if (match) console.log('Found exact match for rawDate:', rawDate);
-          return match;
-        });
-        
-        // If not found, try to find by cleaning up the date
-        if (!dayData) {
-          // Remove any leading day of week if present
-          const cleanRawDate = rawDate.replace(/^[A-Za-z]{3}\s/, '');
-          console.log('Trying cleaned rawDate:', cleanRawDate);
-          
-          dayData = state.dateRangeData.find(d => d.uk === cleanRawDate);
-          if (dayData) console.log('Found match with cleaned date');
-        }
-      }
+      // Find the day data with improved matching
+      let dayData = findDayData(rawDate, period);
       
-      // If not found, try to extract date from period string
-      if (!dayData && period) {
-        // The period format is like "Wed 26/11/2025" - extract the date part
-        const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
-        if (dateMatch) {
-          const extractedDate = dateMatch[1];
-          console.log('Extracted date from period:', extractedDate);
-          dayData = state.dateRangeData.find(d => {
-            console.log('Comparing extracted date:', extractedDate, 'with d.uk:', d.uk);
-            return d.uk === extractedDate;
-          });
-        }
-      }
-      
-      // If still not found, try alternative formats
-      if (!dayData) {
-        // Try to find by partial match
-        dayData = state.dateRangeData.find(d => {
-          // Check if period contains the date
-          return period.includes(d.uk) || d.uk.includes(period);
-        });
-      }
-
       if (!dayData) {
         console.log('Could not find day data for period:', period);
         container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
@@ -1642,30 +1680,23 @@
       const planningGroups = groupsPresent();
       console.log('Planning groups present:', planningGroups);
       
-      let html = `<h3>15-minute Interval Data for ${period}</h3>`;
+      let html = `<h3>${state.intervalGranularity}-minute Interval Data for ${period}</h3>`;
       
       state.currentIntervalData = [];
       
-      // Track if we found any data
       let foundData = false;
       
       planningGroups.forEach(group => {
         console.log('Processing planning group:', group.name, 'ID:', group.id);
         
-        // FIXED: Handle undefined planningGroupId from API
-        // Find matching group data - if group ID is undefined in API, we should still show the data
         const groupData = dayData.data.result.intradayDataGroupings.find(g => {
-          // Filter by media type if specified
           if (mediaTypeFilter && g.mediaType !== mediaTypeFilter) {
             console.log('Filtered out by media type:', g.mediaType, 'expected:', mediaTypeFilter);
             return false;
           }
           
-          // Filter by planning group
           const isAllGroupsSelected = selectedPlanningGroupId === '__ALL__';
           
-          // If API doesn't provide planningGroupId, we should still show the data
-          // This happens when only one planning group is selected
           if (!g.planningGroupId) {
             console.log('API returned undefined planningGroupId, showing data anyway');
             return true;
@@ -1692,13 +1723,11 @@
 
         console.log('Found group data for:', group.name, 'with intervals:', groupData.forecastDataPerInterval?.length || 0);
         
-        // Generate all 96 intervals for midnight to midnight
-        const allIntervals = generateAllIntervals();
+        const allIntervals = generateIntervals(15);
         
         if (groupData.forecastDataPerInterval && groupData.forecastDataPerInterval.length > 0) {
           foundData = true;
           
-          // Map API data to our intervals
           groupData.forecastDataPerInterval.forEach((interval, index) => {
             if (index < allIntervals.length) {
               const forecast = interval.forecast || {};
@@ -1706,30 +1735,36 @@
               
               allIntervals[index].offered = forecast.offered || 0;
               allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
-              allIntervals[index].sl = prediction?.serviceLevelPercent ? formatPercentage(prediction.serviceLevelPercent) : '-';
+              allIntervals[index].sl = prediction?.serviceLevelPercent;
               allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
-              allIntervals[index].occupancy = prediction?.occupancyPercent ? formatPercentage(prediction.occupancyPercent) : '-';
+              allIntervals[index].occupancy = prediction?.occupancyPercent;
             }
           });
+
+          // Aggregate intervals based on selected granularity
+          const aggregatedIntervals = aggregateIntervals(allIntervals, state.intervalGranularity);
+          
+          // Format for display
+          const displayIntervals = aggregatedIntervals.map(interval => ({
+            time: interval.time,
+            offered: interval.offered,
+            aht: interval.aht,
+            sl: interval.sl !== '-' ? formatPercentage(parseFloat(interval.sl)) : '-',
+            asa: interval.asa,
+            occupancy: interval.occupancy !== '-' ? formatPercentage(parseFloat(interval.occupancy)) : '-'
+          }));
 
           // Store for CSV export
           state.currentIntervalData.push({
             groupName: group.name,
-            intervals: allIntervals.map(interval => ({
-              time: interval.time,
-              offered: interval.offered,
-              aht: interval.aht,
-              sl: interval.sl,
-              asa: interval.asa,
-              occupancy: interval.occupancy
-            }))
+            intervals: displayIntervals
           });
 
           html += `
             <div class="table-container" style="margin-bottom:30px;">
               <table class="consolidated-table">
                 <tr>
-                  <th colspan="6" class="group-header">Planning Group: ${group.name} - 15-min Intervals</th>
+                  <th colspan="6" class="group-header">Planning Group: ${group.name} - ${state.intervalGranularity}-min Intervals</th>
                 </tr>
                 <tr>
                   <th class="sub-header">Time</th>
@@ -1741,7 +1776,7 @@
                 </tr>
           `;
 
-          allIntervals.forEach(interval => {
+          displayIntervals.forEach(interval => {
             html += `
               <tr>
                 <td>${interval.time}</td>
@@ -1771,13 +1806,61 @@
               <li>Media Type Filter: ${mediaTypeFilter || 'None'}</li>
               <li>Planning Groups in data: ${dayData.data.result.intradayDataGroupings.length}</li>
               <li>Planning groups found: ${planningGroups.length}</li>
-              <li>First grouping data sample: ${JSON.stringify(dayData.data.result.intradayDataGroupings[0] || {}).substring(0, 200)}...</li>
             </ul>
           </div>
         `;
       }
 
       container.innerHTML = html;
+    }
+
+    function findDayData(rawDate, period) {
+      if (!rawDate && !period) return null;
+      
+      console.log('Searching for date - rawDate:', rawDate, 'period:', period);
+      console.log('Available dates:', state.dateRangeData.map(d => d.uk));
+      
+      // Try exact match with rawDate first
+      if (rawDate) {
+        const exactMatch = state.dateRangeData.find(d => d.uk === rawDate);
+        if (exactMatch) {
+          console.log('Found exact match for rawDate:', rawDate);
+          return exactMatch;
+        }
+        
+        // Try to clean the rawDate (remove day prefix if present)
+        const cleanRawDate = rawDate.replace(/^[A-Za-z]{3}\s/, '');
+        const cleanedMatch = state.dateRangeData.find(d => d.uk === cleanRawDate);
+        if (cleanedMatch) {
+          console.log('Found match with cleaned date:', cleanRawDate);
+          return cleanedMatch;
+        }
+      }
+      
+      // Try to extract date from period string
+      if (period) {
+        const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
+        if (dateMatch) {
+          const extractedDate = dateMatch[1];
+          console.log('Extracted date from period:', extractedDate);
+          const extractedMatch = state.dateRangeData.find(d => d.uk === extractedDate);
+          if (extractedMatch) {
+            console.log('Found match with extracted date');
+            return extractedMatch;
+          }
+        }
+        
+        // Try partial matching
+        const partialMatch = state.dateRangeData.find(d => 
+          period.includes(d.uk) || d.uk.includes(period)
+        );
+        if (partialMatch) {
+          console.log('Found partial match');
+          return partialMatch;
+        }
+      }
+      
+      return null;
     }
 
     function getAllMediaTypesFromData() {
@@ -1808,17 +1891,24 @@
       
       state.dateRangeData.forEach(day => {
         day.data?.result?.intradayDataGroupings?.forEach(group => {
-          const id = group.planningGroupId || document.getElementById('planningGroup').value || 'unknown';
-          const name = state.planningGroupsMap[id] || 
-            document.getElementById('planningGroup').selectedOptions[0]?.text || '(Planning Group)';
-          groupsMap.set(id, name);
+          let groupId = group.planningGroupId;
+          let groupName = state.planningGroupsMap[groupId];
+          
+          if (!groupId && document.getElementById('planningGroup').value !== '__ALL__') {
+            groupId = document.getElementById('planningGroup').value;
+            groupName = document.getElementById('planningGroup').selectedOptions[0]?.text;
+          }
+          
+          if (groupId && groupId !== '__ALL__') {
+            groupsMap.set(groupId, groupName || 'Unknown Group');
+          }
         });
       });
       
       return Array.from(groupsMap, ([id, name]) => ({ id, name }));
     }
 
-    // ===== FIXED Chart Functions =====
+    // ===== Chart Functions =====
     function updateCharts() {
       if (!state.isDataLoaded) {
         document.getElementById('chartsDataContainer').innerHTML = '<div class="no-data">Load forecast data to view charts</div>';
@@ -1841,7 +1931,6 @@
         return;
       }
 
-      // Use first planning group for the chart
       const group = planningGroups[0];
       const labels = [];
       const offeredData = [];
@@ -1849,10 +1938,12 @@
       const serviceLevelData = [];
       const occupancyData = [];
 
-      // Filter data for this specific planning group
       const groupData = state.dateRangeData.map(day => ({
         ...day,
-        groupData: day.groupData?.filter(g => !g.planningGroupId || g.planningGroupId === group.id) || []
+        groupData: day.groupData?.filter(g => {
+          if (!g.planningGroupId && group.id === document.getElementById('planningGroup').value) return true;
+          return g.planningGroupId === group.id;
+        }) || []
       }));
 
       const chartViewType = document.getElementById('chartViewType').value;
@@ -1865,7 +1956,6 @@
         offeredData.push(period.offered);
         ahtData.push(period.ahtCount > 0 ? period.aht / period.ahtCount : 0);
         
-        // Service level is already a percentage from API
         const avgServiceLevel = period.slCount > 0 ? period.sl / period.slCount : null;
         serviceLevelData.push(avgServiceLevel);
         
@@ -2099,7 +2189,6 @@
       document.getElementById('chartViewType').addEventListener('change', updateCharts);
       document.getElementById('loadDataBtn').addEventListener('click', loadData);
       
-      // Export buttons
       document.getElementById('exportForecastBtn').addEventListener('click', exportForecastData);
       document.getElementById('exportIntervalBtn').addEventListener('click', exportIntervalData);
       
@@ -2107,7 +2196,6 @@
       document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
       document.getElementById('chartsTabButton').addEventListener('click', () => setActiveTab('charts'));
       
-      // Chart tab handlers
       document.querySelectorAll('.chart-tab').forEach(tab => {
         tab.addEventListener('click', function() {
           document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
@@ -2117,22 +2205,21 @@
         });
       });
       
-      // Time format toggle handlers - updated
+      document.querySelectorAll('.granularity-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const granularity = this.getAttribute('data-granularity');
+          onGranularityChange(granularity);
+        });
+      });
+      
       document.getElementById('timeFormatToggle').addEventListener('change', function() {
         toggleTimeFormat();
-        if (state.selectedDayForIntervals && state.isDataLoaded) {
-          render15MinTable(state.selectedDayForIntervals, state.selectedRawDate);
-        }
       });
       
       document.getElementById('intervalTimeFormatToggle').addEventListener('change', function() {
         toggleTimeFormat();
-        if (state.selectedDayForIntervals && state.isDataLoaded) {
-          render15MinTable(state.selectedDayForIntervals, state.selectedRawDate);
-        }
       });
       
-      // Add click handlers for the labels
       document.querySelectorAll('.toggle-label').forEach(label => {
         label.addEventListener('click', function() {
           const clickedFormat = this.getAttribute('data-format');
@@ -2142,7 +2229,6 @@
         });
       });
       
-      // Sync the toggles
       document.getElementById('timeFormatToggle').addEventListener('change', function() {
         document.getElementById('intervalTimeFormatToggle').checked = this.checked;
       });
@@ -2151,8 +2237,7 @@
         document.getElementById('timeFormatToggle').checked = this.checked;
       });
       
-      // Initialize time format state
-      state.timeFormat = 'seconds'; // Default to seconds
+      state.timeFormat = 'seconds';
       updateTimeFormatLabels();
       
       const today = new Date();
