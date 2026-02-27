@@ -142,7 +142,6 @@
       border-radius: 6px;
     }
 
-    /* Table Styling */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -187,7 +186,6 @@
       border-bottom: 2px solid var(--primary-color);
     }
 
-    /* Tab Styling */
     .tab {
       display: inline-block;
       padding: 12px 20px;
@@ -245,7 +243,6 @@
       padding-bottom: 5px;
     }
 
-    /* Chart Styles */
     .chart-container {
       margin: 20px 0;
       padding: 20px;
@@ -268,7 +265,6 @@
       min-width: 200px;
     }
 
-    /* Clickable rows */
     .clickable-row {
       cursor: pointer;
     }
@@ -277,7 +273,6 @@
       background-color: rgba(99, 171, 143, 0.1) !important;
     }
 
-    /* Responsive adjustments */
     @media (max-width: 768px) {
       body {
         margin: 10px;
@@ -495,7 +490,6 @@
       background: var(--primary-color);
     }
 
-    /* Interval granularity controls */
     .granularity-control {
       display: flex;
       flex-direction: column;
@@ -536,7 +530,6 @@
     <div id="auth-message" class="info-message">Authenticating with PureCloud...</div>
   </div>
 
-  <!-- Debug (shows only when ?debug=1 is in the URL) -->
   <div id="authDebug" class="card" style="display:none">
     <h2 class="section-title">Auth debug</h2>
     <p class="muted">This block appears when you add <code>?debug=1</code> to the page URL.</p>
@@ -591,7 +584,6 @@
       </div>
     </div>
 
-    <!-- Tabs -->
     <div class="card">
       <div style="margin-bottom: 20px;">
         <div id="tabs">
@@ -692,7 +684,6 @@
   </div>
 
   <script>
-    // ===== Configuration =====
     const CONFIG = {
       clientId: 'fe305808-b368-4547-8af9-325d28d552bb',
       region: 'mypurecloud.ie',
@@ -706,7 +697,6 @@
     const redirectUri = new URL('.', window.location.href).href;
     const oauthUrl = `https://login.${CONFIG.region}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&state=intraday`;
 
-    // ===== Application State =====
     const state = {
       accessToken: null,
       dateRangeData: [],
@@ -721,10 +711,9 @@
       currentChartType: 'volume',
       timeFormat: 'seconds',
       currentIntervalData: null,
-      intervalGranularity: 15 // Default to 15 minutes
+      intervalGranularity: 15
     };
 
-    // ===== Utility Functions =====
     function getMonday(date) {
       const d = new Date(date);
       const day = d.getDay();
@@ -821,8 +810,6 @@
     }
 
     function getPerformancePredictionData(groupData) {
-      console.log("Raw prediction data:", groupData.performancePredictionDataSummary);
-      
       if (groupData.performancePredictionDataSummary) {
         const pred = groupData.performancePredictionDataSummary;
         return {
@@ -854,7 +841,6 @@
       }
     }
 
-    // ===== Time Format Functions =====
     function updateTimeFormatLabels() {
       const format = state.timeFormat;
       
@@ -895,7 +881,6 @@
       }
     }
 
-    // ===== CSV Export Functions =====
     function exportToCSV(filename, csvData) {
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
@@ -980,10 +965,7 @@
       exportToCSV(filename, csvContent);
     }
 
-    // ===== Data Aggregation Functions =====
     function aggregateDataByPeriod(data, periodType) {
-      console.log(`Aggregating ${data.length} days by ${periodType} view`);
-      
       if (periodType === 'daily') {
         const dailyData = [];
         
@@ -1041,7 +1023,6 @@
       
       data.forEach(day => {
         if (!day.date || !day.groupData || day.groupData.length === 0) {
-          console.log('Skipping day with no data:', day.uk);
           return;
         }
         
@@ -1111,11 +1092,9 @@
       });
       
       const result = Object.values(aggregated);
-      console.log(`Aggregation result: ${result.length} periods`, result);
       return result;
     }
 
-    // ===== API Functions =====
     async function fetchPaginatedData(url, options = {}) {
       let allEntities = [];
       let nextUrl = url;
@@ -1162,7 +1141,6 @@
       throw new Error('Intraday operation timed out');
     }
 
-    // ===== Data Fetching =====
     async function fetchBusinessUnits() {
       try {
         const businessUnits = await fetchPaginatedData(
@@ -1279,7 +1257,7 @@
           forecast: g.forecastDataSummary || {},
           prediction: getPerformancePredictionData(g),
           planningGroupId: g.planningGroupId,
-          forecastDataPerInterval: g.forecastDataPerInterval || [] // Preserve interval data
+          forecastDataPerInterval: g.forecastDataPerInterval || []
         }));
     }
 
@@ -1340,7 +1318,6 @@
       showMessage('Forecast data loaded successfully!', 'success');
     }
 
-    // ===== UI Event Handlers =====
     function onBusinessUnitChange() {
       const businessUnitId = this.value;
       const planningGroupSelect = document.getElementById('planningGroup');
@@ -1370,7 +1347,6 @@
     function onGranularityChange(granularity) {
       state.intervalGranularity = parseInt(granularity);
       
-      // Update active button state
       document.querySelectorAll('.granularity-btn').forEach(btn => {
         const btnGranularity = parseInt(btn.getAttribute('data-granularity'));
         if (btnGranularity === state.intervalGranularity) {
@@ -1380,7 +1356,6 @@
         }
       });
       
-      // Re-render interval data if a day is selected
       if (state.selectedDayForIntervals && state.selectedRawDate) {
         renderIntervalData(state.selectedDayForIntervals, state.selectedRawDate);
       }
@@ -1443,7 +1418,6 @@
       }
     }
 
-    // ===== FIXED Data Rendering Functions =====
     function renderAllData() {
       renderConsolidatedTable();
       updateCharts();
@@ -1558,13 +1532,10 @@
           const rawDate = this.getAttribute('data-raw-date');
           const viewType = this.getAttribute('data-view-type');
           
-          console.log('Clicked row - period:', period, 'rawDate:', rawDate, 'viewType:', viewType);
-          
           if (viewType === 'daily') {
             const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
             if (dateMatch) {
               const extractedDate = dateMatch[1];
-              console.log('Extracted date from daily view period:', extractedDate);
               renderIntervalData(period, extractedDate);
             } else {
               renderIntervalData(period, rawDate);
@@ -1588,9 +1559,9 @@
             time: timeString,
             offered: 0,
             aht: 0,
-            sl: '-',
+            sl: null,
             asa: 0,
-            occupancy: '-',
+            occupancy: null,
             count: 0
           });
         }
@@ -1607,34 +1578,49 @@
       for (let i = 0; i < intervals.length; i += stepsToAggregate) {
         const group = intervals.slice(i, i + stepsToAggregate);
         
-        const offered = group.reduce((sum, interval) => sum + (interval.offered || 0), 0);
-        const ahtSum = group.reduce((sum, interval) => sum + (interval.aht || 0), 0);
-        const ahtCount = group.filter(interval => interval.aht > 0).length;
+        const validGroup = group.filter(interval => interval !== null && interval !== undefined);
+        
+        if (validGroup.length === 0) {
+          aggregated.push({
+            time: group[0]?.time || `${Math.floor(i/4)}:00`,
+            offered: 0,
+            aht: 0,
+            sl: '-',
+            asa: 0,
+            occupancy: '-'
+          });
+          continue;
+        }
+        
+        const offered = validGroup.reduce((sum, interval) => sum + (interval.offered || 0), 0);
+        
+        const ahtSum = validGroup.reduce((sum, interval) => sum + (interval.aht || 0), 0);
+        const ahtCount = validGroup.filter(interval => interval.aht > 0).length;
         const aht = ahtCount > 0 ? ahtSum / ahtCount : 0;
         
-        const slValues = group
+        const slValues = validGroup
           .map(interval => interval.sl)
-          .filter(sl => sl !== '-' && sl !== null && sl !== undefined)
+          .filter(sl => sl !== '-' && sl !== null && sl !== undefined && !isNaN(parseFloat(sl)))
           .map(sl => parseFloat(sl));
-        const sl = slValues.length > 0 ? (slValues.reduce((a, b) => a + b, 0) / slValues.length).toFixed(1) + '%' : '-';
+        const sl = slValues.length > 0 ? (slValues.reduce((a, b) => a + b, 0) / slValues.length) : null;
         
-        const asaSum = group.reduce((sum, interval) => sum + (interval.asa || 0), 0);
-        const asaCount = group.filter(interval => interval.asa > 0).length;
+        const asaSum = validGroup.reduce((sum, interval) => sum + (interval.asa || 0), 0);
+        const asaCount = validGroup.filter(interval => interval.asa > 0).length;
         const asa = asaCount > 0 ? asaSum / asaCount : 0;
         
-        const occValues = group
+        const occValues = validGroup
           .map(interval => interval.occupancy)
-          .filter(occ => occ !== '-' && occ !== null && occ !== undefined)
+          .filter(occ => occ !== '-' && occ !== null && occ !== undefined && !isNaN(parseFloat(occ)))
           .map(occ => parseFloat(occ));
-        const occupancy = occValues.length > 0 ? (occValues.reduce((a, b) => a + b, 0) / occValues.length).toFixed(1) + '%' : '-';
+        const occupancy = occValues.length > 0 ? (occValues.reduce((a, b) => a + b, 0) / occValues.length) : null;
         
         aggregated.push({
-          time: group[0].time,
+          time: group[0]?.time || `${Math.floor(i/4)}:00`,
           offered: offered,
           aht: aht,
-          sl: sl,
+          sl: sl !== null ? sl : '-',
           asa: asa,
-          occupancy: occupancy
+          occupancy: occupancy !== null ? occupancy : '-'
         });
       }
       
@@ -1646,12 +1632,6 @@
       state.selectedRawDate = rawDate;
       setActiveTab('interval');
       
-      console.log('renderIntervalData called with:', {
-        period: period,
-        rawDate: rawDate,
-        availableDates: state.dateRangeData.map(d => d.uk)
-      });
-      
       const container = document.getElementById('intervalTableContainer');
       const mediaTypeFilter = document.getElementById('mediaType').value;
       const selectedPlanningGroupId = document.getElementById('planningGroup').value;
@@ -1661,24 +1641,19 @@
         return;
       }
 
-      // Find the day data with improved matching
       let dayData = findDayData(rawDate, period);
       
       if (!dayData) {
-        console.log('Could not find day data for period:', period);
         container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
         return;
       }
 
       if (!dayData.data?.result?.intradayDataGroupings) {
-        console.log('Found day data but no intradayDataGroupings:', dayData);
         container.innerHTML = '<div class="no-data">No interval data available for this date</div>';
         return;
       }
 
-      console.log('Found day data with intradayDataGroupings:', dayData.data.result.intradayDataGroupings.length, 'groups');
       const planningGroups = groupsPresent();
-      console.log('Planning groups present:', planningGroups);
       
       let html = `<h3>${state.intervalGranularity}-minute Interval Data for ${period}</h3>`;
       
@@ -1687,41 +1662,26 @@
       let foundData = false;
       
       planningGroups.forEach(group => {
-        console.log('Processing planning group:', group.name, 'ID:', group.id);
-        
         const groupData = dayData.data.result.intradayDataGroupings.find(g => {
           if (mediaTypeFilter && g.mediaType !== mediaTypeFilter) {
-            console.log('Filtered out by media type:', g.mediaType, 'expected:', mediaTypeFilter);
             return false;
           }
           
           const isAllGroupsSelected = selectedPlanningGroupId === '__ALL__';
           
           if (!g.planningGroupId) {
-            console.log('API returned undefined planningGroupId, showing data anyway');
             return true;
           }
           
           const groupMatches = isAllGroupsSelected || 
                               (g.planningGroupId === group.id || g.planningGroupId === selectedPlanningGroupId);
           
-          console.log('Group match check:', {
-            groupId: g.planningGroupId,
-            expectedGroupId: group.id,
-            selectedPlanningGroupId,
-            isAllGroupsSelected,
-            groupMatches
-          });
-          
           return groupMatches;
         });
 
         if (!groupData) {
-          console.log(`No group data found for: ${group.name}`);
           return;
         }
-
-        console.log('Found group data for:', group.name, 'with intervals:', groupData.forecastDataPerInterval?.length || 0);
         
         const allIntervals = generateIntervals(15);
         
@@ -1729,7 +1689,7 @@
           foundData = true;
           
           groupData.forecastDataPerInterval.forEach((interval, index) => {
-            if (index < allIntervals.length) {
+            if (index < allIntervals.length && interval !== null) {
               const forecast = interval.forecast || {};
               const prediction = interval.performancePrediction || {};
               
@@ -1741,20 +1701,19 @@
             }
           });
 
-          // Aggregate intervals based on selected granularity
           const aggregatedIntervals = aggregateIntervals(allIntervals, state.intervalGranularity);
           
-          // Format for display
           const displayIntervals = aggregatedIntervals.map(interval => ({
             time: interval.time,
             offered: interval.offered,
             aht: interval.aht,
-            sl: interval.sl !== '-' ? formatPercentage(parseFloat(interval.sl)) : '-',
+            sl: interval.sl !== '-' && interval.sl !== null && interval.sl !== undefined ? 
+                formatPercentage(parseFloat(interval.sl)) : '-',
             asa: interval.asa,
-            occupancy: interval.occupancy !== '-' ? formatPercentage(parseFloat(interval.occupancy)) : '-'
+            occupancy: interval.occupancy !== '-' && interval.occupancy !== null && interval.occupancy !== undefined ? 
+                      formatPercentage(parseFloat(interval.occupancy)) : '-'
           }));
 
-          // Store for CSV export
           state.currentIntervalData.push({
             groupName: group.name,
             intervals: displayIntervals
@@ -1790,13 +1749,10 @@
           });
 
           html += `</table></div>`;
-        } else {
-          console.log('No forecastDataPerInterval for group:', group.name);
         }
       });
 
       if (!foundData) {
-        console.log('No interval data found for any planning group');
         html += `
           <div class="no-data">
             <p>No interval data available for this date and planning group.</p>
@@ -1817,47 +1773,27 @@
     function findDayData(rawDate, period) {
       if (!rawDate && !period) return null;
       
-      console.log('Searching for date - rawDate:', rawDate, 'period:', period);
-      console.log('Available dates:', state.dateRangeData.map(d => d.uk));
-      
-      // Try exact match with rawDate first
       if (rawDate) {
         const exactMatch = state.dateRangeData.find(d => d.uk === rawDate);
-        if (exactMatch) {
-          console.log('Found exact match for rawDate:', rawDate);
-          return exactMatch;
-        }
+        if (exactMatch) return exactMatch;
         
-        // Try to clean the rawDate (remove day prefix if present)
         const cleanRawDate = rawDate.replace(/^[A-Za-z]{3}\s/, '');
         const cleanedMatch = state.dateRangeData.find(d => d.uk === cleanRawDate);
-        if (cleanedMatch) {
-          console.log('Found match with cleaned date:', cleanRawDate);
-          return cleanedMatch;
-        }
+        if (cleanedMatch) return cleanedMatch;
       }
       
-      // Try to extract date from period string
       if (period) {
         const dateMatch = period.match(/(\d{2}\/\d{2}\/\d{4})/);
         if (dateMatch) {
           const extractedDate = dateMatch[1];
-          console.log('Extracted date from period:', extractedDate);
           const extractedMatch = state.dateRangeData.find(d => d.uk === extractedDate);
-          if (extractedMatch) {
-            console.log('Found match with extracted date');
-            return extractedMatch;
-          }
+          if (extractedMatch) return extractedMatch;
         }
         
-        // Try partial matching
         const partialMatch = state.dateRangeData.find(d => 
           period.includes(d.uk) || d.uk.includes(period)
         );
-        if (partialMatch) {
-          console.log('Found partial match');
-          return partialMatch;
-        }
+        if (partialMatch) return partialMatch;
       }
       
       return null;
@@ -1908,7 +1844,6 @@
       return Array.from(groupsMap, ([id, name]) => ({ id, name }));
     }
 
-    // ===== Chart Functions =====
     function updateCharts() {
       if (!state.isDataLoaded) {
         document.getElementById('chartsDataContainer').innerHTML = '<div class="no-data">Load forecast data to view charts</div>';
@@ -1948,8 +1883,6 @@
 
       const chartViewType = document.getElementById('chartViewType').value;
       const aggregatedData = aggregateDataByPeriod(groupData, chartViewType);
-      
-      console.log(`Chart rendering with ${aggregatedData.length} periods for view type: ${chartViewType}`);
       
       aggregatedData.forEach(period => {
         labels.push(period.label);
@@ -2120,7 +2053,6 @@
       document.getElementById('chartsDataContainer').innerHTML = '';
     }
 
-    // ===== Authentication =====
     document.addEventListener('DOMContentLoaded', () => {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
