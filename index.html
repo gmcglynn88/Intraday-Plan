@@ -1692,25 +1692,14 @@
           // FIXED: Access interval data directly from the interval object
 groupData.forecastDataPerInterval.forEach((interval, index) => {
             if (index < allIntervals.length) {
-              if (index === 0) console.log('GROUP KEYS:', Object.keys(groupData));
-              if (!interval) return;
-              if (index === 36) console.log('INTERVAL 9AM:', JSON.stringify(interval).substring(0, 800));
+              // Get the matching prediction interval from the parallel array
+              const prediction = groupData.performancePredictionDataPerInterval?.[index] || {};
 
-      // Genesys API nests forecast data under forecastData key
-      const forecast = interval.forecastData || interval.forecast || interval;
-      // Prediction data is under performancePredictionData key
-      const prediction = interval.performancePredictionData || 
-                         interval.performancePrediction || {};
-
-      allIntervals[index].offered = forecast.offered || interval.offered || 0;
-      allIntervals[index].aht = forecast.averageHandleTimeSeconds || 
-                                interval.averageHandleTimeSeconds || 0;
-      allIntervals[index].sl = prediction.serviceLevelPercent ?? 
-                               forecast.serviceLevelPercent ?? null;
-      allIntervals[index].asa = prediction.averageSpeedOfAnswerSeconds || 
-                                forecast.averageSpeedOfAnswerSeconds || 0;
-      allIntervals[index].occupancy = prediction.occupancyPercent ?? 
-                                      forecast.occupancyPercent ?? null;
+              allIntervals[index].offered = interval?.offered ?? 0;
+              allIntervals[index].aht = interval?.averageHandleTimeSeconds ?? 0;
+              allIntervals[index].sl = prediction.serviceLevelPercent ?? null;
+              allIntervals[index].asa = prediction.averageSpeedOfAnswerSeconds ?? 0;
+              allIntervals[index].occupancy = prediction.occupancyPercent ?? null;
             }
           });
 
