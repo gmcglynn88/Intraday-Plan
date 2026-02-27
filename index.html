@@ -224,12 +224,20 @@
       padding: 20px;
     }
 
-    .table-container {
+.table-container {
       overflow-x: auto;
+      overflow-y: auto;
+      max-height: 600px;
       margin-top: 20px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 1px;
+    }
+
+.consolidated-table th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     .metrics-section {
@@ -1738,6 +1746,8 @@ groupData.forecastDataPerInterval.forEach((interval, index) => {
           `;
 
           displayIntervals.forEach(interval => {
+            if (interval.offered === 0 && interval.aht === 0 && 
+                interval.sl === '-' && interval.asa === 0 && interval.occupancy === '-') return;
             html += `
               <tr>
                 <td>${interval.time}</td>
@@ -1771,18 +1781,6 @@ groupData.forecastDataPerInterval.forEach((interval, index) => {
 
    container.innerHTML = html;
 
-      // Auto-scroll to first interval with data
-      setTimeout(() => {
-        const rows = container.querySelectorAll('tr');
-        for (const row of rows) {
-          const cells = row.querySelectorAll('td');
-          if (cells.length > 1 && cells[1].textContent.trim() !== '0' && 
-              cells[1].textContent.trim() !== '-') {
-            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            break;
-          }
-        }
-      }, 100);
     }
     function findDayData(rawDate, period) {
       if (!rawDate && !period) return null;
