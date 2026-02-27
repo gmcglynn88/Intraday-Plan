@@ -788,16 +788,17 @@
       
       per.forEach(x => {
         if (!x) return;
-        if (x.performancePrediction && x.performancePrediction.serviceLevelPercent !== undefined) { 
-          slSum += x.performancePrediction.serviceLevelPercent; 
+        // Access prediction data directly from the interval object
+        if (x.serviceLevelPercent !== undefined) { 
+          slSum += x.serviceLevelPercent; 
           slCnt++; 
         }
-        if (x.performancePrediction && x.performancePrediction.averageSpeedOfAnswerSeconds !== undefined) { 
-          asaSum += x.performancePrediction.averageSpeedOfAnswerSeconds; 
+        if (x.averageSpeedOfAnswerSeconds !== undefined) { 
+          asaSum += x.averageSpeedOfAnswerSeconds; 
           asaCnt++; 
         }
-        if (x.performancePrediction && x.performancePrediction.occupancyPercent !== undefined) { 
-          occSum += x.performancePrediction.occupancyPercent; 
+        if (x.occupancyPercent !== undefined) { 
+          occSum += x.occupancyPercent; 
           occCnt++; 
         }
       });
@@ -1688,17 +1689,26 @@
         if (groupData.forecastDataPerInterval && groupData.forecastDataPerInterval.length > 0) {
           foundData = true;
           
-groupData.forecastDataPerInterval.forEach((interval, index) => {
-    if (index < allIntervals.length) {
-        if (!interval) return; // ← ADD THIS LINE
-        const forecast = interval.forecast || {};
-        const prediction = interval.performancePrediction || {};
+          // FIXED: Access interval data directly from the interval object
+          groupData.forecastDataPerInterval.forEach((interval, index) => {
+            if (index < allIntervals.length) {
+              if (!interval) return;
               
-              allIntervals[index].offered = forecast.offered || 0;
-              allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
-              allIntervals[index].sl = prediction?.serviceLevelPercent;
-              allIntervals[index].asa = prediction?.averageSpeedOfAnswerSeconds || 0;
-              allIntervals[index].occupancy = prediction?.occupancyPercent;
+              // For debugging - uncomment to see the actual structure
+              // console.log('Interval sample:', JSON.stringify(interval));
+              
+              // Access data directly from the interval object
+              // The structure is likely flat, not nested under .forecast
+              const prediction = interval.performancePrediction || {};
+              
+              allIntervals[index].offered = interval.offered || 0;
+              allIntervals[index].aht = interval.averageHandleTimeSeconds || 0;
+              allIntervals[index].sl = prediction.serviceLevelPercent !== undefined ? 
+                prediction.serviceLevelPercent : interval.serviceLevelPercent;
+              allIntervals[index].asa = prediction.averageSpeedOfAnswerSeconds !== undefined ? 
+                prediction.averageSpeedOfAnswerSeconds : interval.averageSpeedOfAnswerSeconds || 0;
+              allIntervals[index].occupancy = prediction.occupancyPercent !== undefined ? 
+                prediction.occupancyPercent : interval.occupancyPercent;
             }
           });
 
