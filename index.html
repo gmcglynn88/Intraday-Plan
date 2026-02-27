@@ -627,6 +627,7 @@ input, select, button, textarea {
           <div id="dailyTabButton" class="tab active">Forecast Data</div>
           <div id="intervalTabButton" class="tab">Interval Data</div>
           <div id="chartsTabButton" class="tab">Charts & Analytics</div>
+          <div id="guideTabButton" class="tab">How to Use</div> <!-- New Tab Button -->
         </div>
       </div>
       
@@ -716,6 +717,72 @@ input, select, button, textarea {
           <canvas id="metricsChart"></canvas>
         </div>
         <div id="chartsDataContainer" class="loading">Load forecast data to view charts</div>
+      </div>
+
+      <!-- New Guide Tab Content -->
+      <div id="guideTab" class="tab-content">
+        <h2 class="section-title">How to Use This Tool</h2>
+
+        <div style="max-width:800px;line-height:1.7;">
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">What is this tool?</h3>
+          <p>This tool connects to your Genesys PureCloud workforce management system and displays intraday forecast data for your contact centre. It allows you to review predicted call volumes, handle times and performance predictions across any date range, broken down by planning group.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Step 1 — Select a Business Unit</h3>
+          <p>Choose your Business Unit from the first dropdown. This determines which planning groups are available. The list is pulled directly from your Genesys environment.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Step 2 — Select a Planning Group</h3>
+          <p>Choose a specific planning group or select <strong>All Planning Groups</strong> to see data across all groups within the business unit. Planning groups typically represent a queue or skill grouping within your workforce management configuration.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Step 3 — Set a Date Range</h3>
+          <p>Select a start and end date. The tool supports up to <strong>90 days</strong> in a single load. Larger ranges will take longer to load as the tool fetches each day individually from the Genesys API. A progress bar will show loading status.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Step 4 — Filter by Media Type (Optional)</h3>
+          <p>You can filter results to show only <strong>Voice</strong> or <strong>Message</strong> interactions. Leave blank to include all media types. This filter applies across all views.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Step 5 — Load Forecast Data</h3>
+          <p>Click <strong>Load Forecast Data</strong>. The tool will retrieve forecast and performance prediction data for every day in your selected range. Once loaded, data is held in memory so you can switch views without reloading.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Understanding the Forecast Data Tab</h3>
+          <p>This tab shows a summary table with the following metrics:</p>
+          <ul style="line-height:2;">
+            <li><strong>Offered</strong> — The forecasted number of interactions expected to arrive.</li>
+            <li><strong>Avg Handle Time (AHT)</strong> — The forecasted average time to handle each interaction, in seconds or HH:MM:SS depending on your toggle setting.</li>
+            <li><strong>Service Level</strong> — The predicted percentage of interactions answered within the target threshold.</li>
+            <li><strong>Avg Speed of Answer (ASA)</strong> — The predicted average time callers wait before being answered.</li>
+            <li><strong>Occupancy</strong> — The predicted percentage of time agents will be occupied handling interactions versus available and waiting.</li>
+          </ul>
+          <p>Use the <strong>View Type</strong> dropdown to switch between Daily, Weekly and Monthly aggregations. Weekly view groups data by week commencing Monday. A grand total row appears at the bottom of each table.</p>
+          <p>Click any row to drill into the 15-minute interval data for that day.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Understanding the Interval Data Tab</h3>
+          <p>Clicking a day row in the Forecast Data tab switches to this view and shows the same metrics broken down into intervals throughout the day. Only intervals with data are shown — overnight and out-of-hours slots with no forecast activity are hidden automatically.</p>
+          <p>Use the <strong>Interval Granularity</strong> buttons to switch between 15, 30, 45 and 60 minute views. When using 30, 45 or 60 minute views, the tool aggregates the underlying 15-minute data — offered volumes are summed, while AHT, service level, ASA and occupancy are averaged across the grouped intervals.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Understanding the Charts Tab</h3>
+          <p>Three chart types are available:</p>
+          <ul style="line-height:2;">
+            <li><strong>Volume & AHT</strong> — A combined bar and line chart showing forecasted offered volume alongside average handle time trends.</li>
+            <li><strong>Service Level Predictions</strong> — A line chart showing predicted service level percentage over time.</li>
+            <li><strong>Occupancy Predictions</strong> — A line chart showing predicted agent occupancy over time.</li>
+          </ul>
+          <p>Use the View Type selector to switch between daily, weekly and monthly chart granularity.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Time Format Toggle</h3>
+          <p>The time format toggle appears on both the Forecast Data and Interval Data tabs. Switch between <strong>Seconds</strong> (e.g. 308) and <strong>HH:MM:SS</strong> format (e.g. 5:08) for AHT and ASA values.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Exporting Data</h3>
+          <p>Both the Forecast Data and Interval Data tabs have an <strong>Export to CSV</strong> button. The forecast export includes all periods currently visible in the table. The interval export includes all intervals for the currently selected day. Files are named automatically with the date range included.</p>
+
+          <h3 style="color:var(--secondary-color);margin-top:24px;">Tips</h3>
+          <ul style="line-height:2;">
+            <li>If data looks incorrect, check your Media Type filter — filtering to Voice only will exclude any Message channel forecast data.</li>
+            <li>Future dates will show forecast data only with no actuals. Past dates may show both depending on your Genesys configuration.</li>
+            <li>If a day shows no data, it may mean no forecast was published in Genesys for that date.</li>
+            <li>The tool respects your Genesys timezone setting — dates are based on the business unit date in your PureCloud environment.</li>
+          </ul>
+
+        </div>
       </div>
     </div>
   </div>
@@ -1446,10 +1513,12 @@ input, select, button, textarea {
       document.getElementById('dailyTabButton').classList.toggle('active', tabName === 'daily');
       document.getElementById('intervalTabButton').classList.toggle('active', tabName === 'interval');
       document.getElementById('chartsTabButton').classList.toggle('active', tabName === 'charts');
+      document.getElementById('guideTabButton').classList.toggle('active', tabName === 'guide'); // Toggle new tab button
       
       document.getElementById('dailyTab').classList.toggle('active', tabName === 'daily');
       document.getElementById('intervalTab').classList.toggle('active', tabName === 'interval');
       document.getElementById('chartsTab').classList.toggle('active', tabName === 'charts');
+      document.getElementById('guideTab').classList.toggle('active', tabName === 'guide'); // Toggle new tab content
 
       if (tabName === 'charts') {
         updateCharts();
@@ -2168,6 +2237,7 @@ groupData.forecastDataPerInterval.forEach((interval, index) => {
       document.getElementById('dailyTabButton').addEventListener('click', () => setActiveTab('daily'));
       document.getElementById('intervalTabButton').addEventListener('click', () => setActiveTab('interval'));
       document.getElementById('chartsTabButton').addEventListener('click', () => setActiveTab('charts'));
+      document.getElementById('guideTabButton').addEventListener('click', () => setActiveTab('guide')); // New event listener
       
       document.querySelectorAll('.chart-tab').forEach(tab => {
         tab.addEventListener('click', function() {
