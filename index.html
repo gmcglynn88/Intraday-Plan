@@ -1688,10 +1688,11 @@
         if (groupData.forecastDataPerInterval && groupData.forecastDataPerInterval.length > 0) {
           foundData = true;
           
-          groupData.forecastDataPerInterval.forEach((interval, index) => {
-            if (index < allIntervals.length && interval !== null) {
-              const forecast = interval.forecast || {};
-              const prediction = interval.performancePrediction || {};
+groupData.forecastDataPerInterval.forEach((interval, index) => {
+    if (index < allIntervals.length) {
+        if (!interval) return; // ← ADD THIS LINE
+        const forecast = interval.forecast || {};
+        const prediction = interval.performancePrediction || {};
               
               allIntervals[index].offered = forecast.offered || 0;
               allIntervals[index].aht = forecast.averageHandleTimeSeconds || 0;
